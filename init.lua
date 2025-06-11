@@ -1,175 +1,145 @@
---------------------------------------------------------------------------------
--- 🔋 AUTO-AJUSTE DE BRILHO COM BASE NA FONTE DE ENERGIA (AC/BATERIA)
---------------------------------------------------------------------------------
--- Salva o estado atual da fonte de energia
-local lastPowerSource = hs.battery.powerSource()
-
--- Função chamada periodicamente para checar se a fonte mudou (AC/Bateria)
-function checkPowerSource()
-    local ok, err = pcall(function()
-        local source = hs.battery.powerSource()
-        if source ~= lastPowerSource then
-            hs.alert.show("Fonte de energia: " .. source)
-
-            -- Ajuste o brilho dependendo da fonte
-            if source == "AC Power" then
-                hs.brightness.set(100)
-            elseif source == "Battery Power" then
-                hs.brightness.set(50)
-            end
-
-            lastPowerSource = source
-        end
-        print("🔋 Power check at", os.date("%H:%M:%S"), "-", source)
-    end)
+---------------------------------------------------------------------
+--  H A M M E R S P O O N   P R O D U C T I V I T Y   T O O L K I T
+--  Author : Renato F. Pereira
+--  Updated: 2025-06-11
+--
+--  Features
+--  1. Auto-adjust display brightness when the power source changes
+--  2. Alt + A cycles through visible windows of the frontmost app
+--  3. Keeps the display awake while FileZilla is running
+--  4. “Keep-alive” mouse wiggle every 60 s while Microsoft Teams is open
+---------------------------------------------------------------------
+---------------------------------------------------------------------
+-- ▸ Helpers
+---------------------------------------------------------------------
+local function safe(fn, ...)
+    local ok, err = pcall(fn, ...)
     if not ok then
-        print("❌ Power check failed:", err)
+        print("❌ Error:", err)
     end
 end
 
--- Executa a checagem a cada 5 segundos
+-- Generic process checker via pgrep
+local function isProcessRunning(name)
+    local output, _, _, rc = hs.execute("/usr/bin/pgrep -lf '" .. name .. "'", true)
+    return rc == 0 and output and output ~= ""
+end
+
+---------------------------------------------------------------------
+-- ▸ 1. Auto-brightness by power source (every 5s)
+---------------------------------------------------------------------
+local lastPowerSource = hs.battery.powerSource() or "Unknown"
+
+local function checkPowerSource()
+    safe(function()
+        local source = hs.battery.powerSource() or "Unknown"
+        if source ~= lastPowerSource then
+            hs.alert.show("⏻ Power source changed: " .. source)
+            hs.brightness.set(source == "AC Power" and 100 or 50)
+            lastPowerSource = source
+        end
+        print("🔋 Power check → " .. source)
+    end)
+end
+
 hs.timer.doEvery(5, checkPowerSource)
+checkPowerSource()
 
---------------------------------------------------------------------------------
--- 🪟 ALTERNÂNCIA ENTRE JANELAS DO MESMO APLICATIVO COM ALT + A
---------------------------------------------------------------------------------
-
--- Atalho Alt+A para alternar entre janelas visíveis do app em foco
+---------------------------------------------------------------------
+-- ▸ 2. Alt + A — cycle through visible windows of frontmost app
+---------------------------------------------------------------------
 hs.hotkey.bind({"alt"}, "A", function()
     local app = hs.application.frontmostApplication()
-    local windows = hs.fnutils.filter(app:allWindows(), function(win)
-        return win:isStandard() and win:isVisible()
+    local windows = hs.fnutils.filter(app:allWindows(), function(w)
+        return w:isStandard() and w:isVisible()
     end)
 
     if #windows < 2 then
         return
     end
 
-    -- Ordena para garantir alternância determinística
     table.sort(windows, function(a, b)
         return a:id() < b:id()
     end)
 
-    local focused = app:focusedWindow()
-    local focusedID = focused and focused:id()
+    local focusedID = app:focusedWindow():id()
     local nextIndex = 1
 
-    for i, win in ipairs(windows) do
-        if win:id() == focusedID then
+    for i, w in ipairs(windows) do
+        if w:id() == focusedID then
             nextIndex = (i % #windows) + 1
             break
         end
     end
 
-    local nextWin = windows[nextIndex]
-    if nextWin then
-        nextWin:raise()
-        nextWin:focus()
-    end
+    windows[nextIndex]:raise():focus()
 end)
 
---------------------------------------------------------------------------------
--- ☕ CAFFEINATE ATIVO QUANDO FILEZILLA ESTIVER EM EXECUÇÃO
---------------------------------------------------------------------------------
+---------------------------------------------------------------------
+-- ▸ 3. Keep display awake while FileZilla is running (every 5s)
+---------------------------------------------------------------------
+local caffeinateActive = false
 
--- Estado atual do caffeinate (se está impedindo ocioso)
-local caffeinateStatus = false
+local function syncCaffeinate()
+    safe(function()
+        local running = isProcessRunning("FileZilla")
+        print("🕵️ FileZilla running? " .. tostring(running))
 
--- Verifica se o FileZilla está rodando com base no nome do processo
-function isAppRunning()
-    local handle = io.popen("pgrep -lf filezilla")
-    local result = handle:read("*a")
-    handle:close()
-    return result:match("FileZilla%.app") ~= nil
-end
-
--- Ativa ou desativa o caffeinate conforme estado do FileZilla
-function toggleCaffeinate(state)
-    if state and not caffeinateStatus then
-        hs.caffeinate.set("displayIdle", true)
-        caffeinateStatus = true
-        hs.alert.show("☕ Caffeinate ON")
-        print("☕ Caffeinate ativado", os.date("%H:%M:%S"))
-    elseif not state and caffeinateStatus then
-        hs.caffeinate.set("displayIdle", false)
-        caffeinateStatus = false
-        hs.alert.show("💤 Caffeinate OFF")
-        print("💤 Caffeinate desligado", os.date("%H:%M:%S"))
-    end
-end
-
--- Checa periodicamente o estado do FileZilla e atualiza o caffeinate
-hs.timer.doEvery(5, function()
-    local ok, err = pcall(function()
-        local running = isAppRunning()
-        print("🔍 FileZilla rodando?", running, os.date("%H:%M:%S"))
-        toggleCaffeinate(running)
+        if running and not caffeinateActive then
+            hs.caffeinate.set("displayIdle", true)
+            caffeinateActive = true
+            hs.alert.show("☕ Caffeinate ON")
+        elseif not running and caffeinateActive then
+            hs.caffeinate.set("displayIdle", false)
+            caffeinateActive = false
+            hs.alert.show("💤 Caffeinate OFF")
+        end
     end)
-    if not ok then
-        print("❌ FileZilla timer error:", err)
-    end
-end)
-
--- Inicializa o estado ao carregar o script
-toggleCaffeinate(isAppRunning())
-
---------------------------------------------------------------------------------
--- 🖱️ SIMULADOR DE ATIVIDADE PARA MICROSOFT TEAMS (MOUSE MOVE A CADA 60s)
---------------------------------------------------------------------------------
-
-local appName = "Microsoft Teams"
-local interval = 60 -- segundos
-
--- Verifica se o Microsoft Teams está em execução
-function isTeamsRunning()
-    local handle = io.popen("pgrep -f 'Microsoft Teams' | head -n 1")
-    local result = handle:read("*a")
-    handle:close()
-    return result:match("%d") ~= nil
 end
 
--- Verifica se um ponto está dentro da área de qualquer tela conectada
-function isPointVisible(point)
-    for _, screen in ipairs(hs.screen.allScreens()) do
+hs.timer.doEvery(5, syncCaffeinate)
+syncCaffeinate()
+
+---------------------------------------------------------------------
+-- ▸ 4. Mouse keep-alive while Microsoft Teams is running (every 60s)
+---------------------------------------------------------------------
+local delta = 10 -- ±pixel movement per axis
+
+local function wiggleMouse()
+    safe(function()
+        if not isProcessRunning("Microsoft Teams") then
+            print("🛑 Teams not running — skipping mouse wiggle.")
+            return
+        end
+
+        local point = hs.mouse.absolutePosition()
+        local screen = hs.mouse.getCurrentScreen()
+        if not point or not screen then
+            print("⚠️ Cannot determine mouse position or screen.")
+            return
+        end
+
         local frame = screen:frame()
-        if point.x >= frame.x and point.x <= frame.x + frame.w and point.y >= frame.y and point.y <= frame.y + frame.h then
-            return true
-        end
-    end
-    return false
-end
+        local dx = math.random(-delta, delta)
+        local dy = math.random(-delta, delta)
 
--- Move o mouse em uma direção aleatória (±10px) respeitando área visível
-function moveMouseSafely()
-    local point = hs.mouse.absolutePosition()
-    local dx = (math.random(0, 1) == 0 and -10 or 10)
-    local dy = (math.random(0, 1) == 0 and -10 or 10)
-    local newPoint = {
-        x = point.x + dx,
-        y = point.y + dy
-    }
+        local newX = math.max(math.min(point.x + dx, frame.x + frame.w - 1), frame.x)
+        local newY = math.max(math.min(point.y + dy, frame.y + frame.h - 1), frame.y)
 
-    if isPointVisible(newPoint) then
-        hs.mouse.absolutePosition(newPoint)
-        print("🖱️ Mouse moved to:", newPoint.x, newPoint.y, os.date("%H:%M:%S"))
-    else
-        print("⚠️ Ignored move outside visible screen:", newPoint.x, newPoint.y, os.date("%H:%M:%S"))
-    end
-end
+        hs.mouse.absolutePosition({
+            x = newX,
+            y = newY
+        })
 
--- A cada 60 segundos, se o Teams estiver rodando, move o mouse
-hs.timer.doEvery(interval, function()
-    local ok, err = pcall(function()
-        if isTeamsRunning() then
-            moveMouseSafely()
-        else
-            print("🛑 Teams not running, no mouse movement", os.date("%H:%M:%S"))
-        end
+        print(string.format("🖱️ Wiggle to (%.0f, %.0f) [±%dpx]", newX, newY, delta))
     end)
-    if not ok then
-        print("❌ Teams timer error:", err)
-    end
-end)
+end
 
--- Alerta visual ao carregar o script
-hs.alert.show("👀 Teams activity monitor started (updated API)")
+hs.timer.doEvery(60, wiggleMouse)
+wiggleMouse()
+
+---------------------------------------------------------------------
+-- ▸ Ready!
+---------------------------------------------------------------------
+print("✅ Hammerspoon Productivity Toolkit initialized.")
+hs.alert.show("🎉 All automations active")
