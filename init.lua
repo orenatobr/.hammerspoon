@@ -122,11 +122,10 @@ local interval = 60 -- segundos
 
 -- Verifica se o Microsoft Teams está em execução
 function isTeamsRunning()
-    local handle = io.popen("pgrep -f \"" .. appName .. "\"")
+    local handle = io.popen("pgrep -x 'Teams'")
     local result = handle:read("*a")
     handle:close()
-    result = string.gsub(result, "%s+", "")
-    return result ~= ""
+    return result:match("%d") ~= nil
 end
 
 -- Verifica se um ponto está dentro da área de qualquer tela conectada
