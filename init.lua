@@ -122,7 +122,7 @@ local interval = 60 -- segundos
 
 -- Verifica se o Microsoft Teams está em execução
 function isTeamsRunning()
-    local handle = io.popen("pgrep -x 'Teams'")
+    local handle = io.popen("pgrep -f 'Microsoft Teams' | head -n 1")
     local result = handle:read("*a")
     handle:close()
     return result:match("%d") ~= nil
