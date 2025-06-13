@@ -3,23 +3,29 @@ local M = {}
 local watcher = nil
 local mouseTimer = nil
 
-local function moveMouse()
+-- Simula um pequeno movimento real com eventos do sistema
+local function jiggleMouse()
     local point = hs.mouse.absolutePosition()
-    local wiggle = 10
-    local newX = math.floor(point.x + (math.random(0, 1) == 0 and -wiggle or wiggle))
-    local newY = math.floor(point.y + (math.random(0, 1) == 0 and -wiggle or wiggle))
-    local newPoint = {
-        x = newX,
-        y = newY
-    }
+    local offset = 1
 
-    hs.mouse.absolutePosition(newPoint)
-    print(string.format("🖱️ Mouse moved to: x=%d, y=%d", newX, newY))
+    hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.mouseMoved, {
+        x = point.x + offset,
+        y = point.y + offset
+    }):post()
+
+    hs.timer.doAfter(0.1, function()
+        hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.mouseMoved, {
+            x = point.x,
+            y = point.y
+        }):post()
+    end)
+
+    print("🖱️ Simulated mouse movement (Teams keep-alive)")
 end
 
 local function startMouseKeepAlive()
     if not mouseTimer then
-        mouseTimer = hs.timer.new(60, moveMouse)
+        mouseTimer = hs.timer.new(60, jiggleMouse)
         mouseTimer:start()
         print("✅ Mouse keep-alive timer iniciado.")
     end
