@@ -42,10 +42,10 @@ end
 local function appWatcher(appName, eventType)
     if appName == "Microsoft Teams" then
         if eventType == hs.application.watcher.launched then
-            print("🚀 Microsoft Teams iniciado.")
+            hs.alert.show("⏻ Microsoft Teams ON")
             startMouseKeepAlive()
         elseif eventType == hs.application.watcher.terminated then
-            print("❌ Microsoft Teams encerrado.")
+            hs.alert.show("⏼ Microsoft Teams OFF")
             stopMouseKeepAlive()
         end
     end
