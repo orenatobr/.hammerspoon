@@ -18,7 +18,7 @@ local function checkLidState()
     if lastBuiltInPresent and not builtInPresent then
         hs.timer.doAfter(0.3, function()
             hs.caffeinate.lockScreen()
-            print("🔒 Tampa fechada detectada — tela bloqueada.")
+            print("🔒 Lid closed detected — screen locked.")
         end)
     end
 
@@ -26,13 +26,13 @@ local function checkLidState()
 end
 
 function M.bindHotkey()
-    -- Placeholder se quiser atalhos no futuro
+    -- Placeholder in case you want to add hotkeys later
 end
 
 function M.start()
     if not timer then
         timer = hs.timer.doEvery(2, checkLidState)
-        print("✅ Monitoramento de tampa iniciado (modo polling).")
+        print("✅ Lid monitoring started (polling mode).")
     end
 end
 
@@ -40,7 +40,7 @@ function M.stop()
     if timer then
         timer:stop()
         timer = nil
-        print("🛑 Monitoramento de tampa desativado.")
+        print("🛑 Lid monitoring stopped.")
     end
 end
 

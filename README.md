@@ -8,13 +8,13 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 
 ```
 .hammerspoon/
-├── init.lua                    # Main entry that loads all modules
+├── init.lua                     # Main entry that loads all modules
 ├── modules/
-│   ├── auto_brightness.lua     # Adjusts screen brightness automatically
-│   ├── auto_lock.lua           # Locks screen when screen is lowered
-│   ├── filezilla_caffeinate.lua# Keeps system awake if FileZilla is running
-│   ├── teams_mouse.lua         # Moves mouse if Microsoft Teams is active
-│   └── window_cycle.lua        # Cycles windows within the current app
+│   ├── auto_brightness.lua      # Adjusts screen brightness automatically
+│   ├── auto_lock.lua            # Locks screen when screen is lowered
+│   ├── filezilla_caffeinate.lua # Keeps system awake if FileZilla is running
+│   ├── teams_mouse.lua          # Moves mouse if Microsoft Teams is active
+│   └── window_cycle.lua         # Cycles windows within the current app
 ```
 
 ---

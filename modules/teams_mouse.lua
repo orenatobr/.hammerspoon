@@ -3,7 +3,7 @@ local M = {}
 local watcher = nil
 local mouseTimer = nil
 
--- Simula um pequeno movimento real com eventos do sistema
+-- Simulates a small natural movement using system mouse events
 local function jiggleMouse()
     local point = hs.mouse.absolutePosition()
     local offset = 1
@@ -27,7 +27,7 @@ local function startMouseKeepAlive()
     if not mouseTimer then
         mouseTimer = hs.timer.new(60, jiggleMouse)
         mouseTimer:start()
-        print("✅ Mouse keep-alive timer iniciado.")
+        print("✅ Mouse keep-alive timer started.")
     end
 end
 
@@ -35,7 +35,7 @@ local function stopMouseKeepAlive()
     if mouseTimer then
         mouseTimer:stop()
         mouseTimer = nil
-        print("🛑 Mouse keep-alive timer parado.")
+        print("🛑 Mouse keep-alive timer stopped.")
     end
 end
 
@@ -52,10 +52,10 @@ local function appWatcher(appName, eventType)
 end
 
 function M.start()
-    -- Verifica se o Teams já estava aberto ao iniciar
+    -- Check if Teams is already running on startup
     local app = hs.application.find("Microsoft Teams")
     if app and app:isRunning() then
-        print("🔎 Microsoft Teams já estava rodando.")
+        print("🔎 Microsoft Teams was already running.")
         startMouseKeepAlive()
     end
 
