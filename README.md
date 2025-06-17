@@ -1,99 +1,70 @@
-# 🛠️ Hammerspoon Configuration
+# 🍎 Hammerspoon Configuration
 
-This repository contains a custom [Hammerspoon](https://www.hammerspoon.org/) configuration script written in Lua, designed to automate and enhance macOS productivity. It includes automatic brightness control, smart window switching, application-aware "Caffeinate" management, and a Microsoft Teams activity simulator.
-
----
-
-## 📋 Features
-
-### 🔋 Auto Brightness Based on Power Source
-- Monitors battery source every 5 seconds.
-- Sets brightness to `100%` when on AC power, `50%` when on battery.
-
-### 🪟 Smart Window Switching (`Alt + A`)
-- Cycles through visible and standard windows of the currently focused application.
-- Deterministic sorting ensures consistent behavior.
-
-### ☕ Auto Caffeinate for FileZilla
-- Keeps display awake (`caffeinate`) while FileZilla is running.
-- Checks every 5 seconds and toggles display sleep prevention accordingly.
-- Displays visual alerts and logs changes.
-
-### 🖱️ Mouse Activity Simulator for Microsoft Teams
-- Detects if Microsoft Teams is running.
-- Every 60 seconds, moves the mouse cursor by ±10 pixels in a random direction.
-- Ensures the movement stays within visible screens (multi-monitor safe).
-- Prevents Teams from marking user as "Away".
-
----
-
-## 🧠 How It Works
-
-Each block of functionality is encapsulated in clearly documented Lua functions. Timers run periodic checks in the background, and actions are taken accordingly based on application state or system conditions.
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone or symlink into your Hammerspoon config folder
-```bash
-git clone git@github.com:orenatobr/.hammerspoon.git ~/.hammerspoon
-```
-
-Or, if you're versioning locally:
-
-```bash
-ln -s /path/to/your/repo ~/.hammerspoon
-```
-
-### 2. Reload Hammerspoon
-Click the Hammerspoon icon in the menu bar and select **"Reload Config"**.
-
----
-
-## 📎 Dependencies
-
-- macOS
-- [Hammerspoon](https://www.hammerspoon.org/) installed
-- Microsoft Teams and/or FileZilla installed (for app-specific behaviors)
+This repository contains a modular configuration for [Hammerspoon](https://www.hammerspoon.org/) — a powerful automation tool for macOS, using Lua scripting. The goal is to provide practical automations like auto-lock, brightness control, app-based mouse keep-alive, and more.
 
 ---
 
 ## 📁 Structure
 
-All logic is contained in a single `init.lua` file:
-
-- `Power Source Monitor`: Adjusts brightness based on AC/Battery.
-- `Window Cycler`: Hotkey to rotate visible windows of active app.
-- `FileZilla Watchdog`: Keeps display awake when FileZilla is active.
-- `Teams Mouse Jiggler`: Prevents idle status in Teams.
-
----
-
-## 🧪 Customization
-
-You can easily change:
-- Brightness levels
-- Hotkey combination (`Alt + A`)
-- Monitored app (`FileZilla`, `Microsoft Teams`)
-- Idle simulation interval (default 60s)
+```
+.hammerspoon/
+├── init.lua                    # Main entry that loads all modules
+├── modules/
+│   ├── auto_brightness.lua     # Adjusts screen brightness automatically
+│   ├── auto_lock.lua           # Locks screen when screen is lowered
+│   ├── filezilla_caffeinate.lua# Keeps system awake if FileZilla is running
+│   ├── teams_mouse.lua         # Moves mouse if Microsoft Teams is active
+│   └── window_cycle.lua        # Cycles windows within the current app
+```
 
 ---
 
-## 🔒 Privacy Note
+## ⚙️ Requirements
 
-No personal data is collected or sent anywhere. All monitoring and actions occur locally on your machine.
+- macOS
+- [Hammerspoon](https://www.hammerspoon.org/) installed
+- Accessibility permissions granted to Hammerspoon (via System Settings > Privacy & Security)
+
+---
+
+## 🚀 Installation
+
+1. **Clone this repository:**
+
+   ```bash
+   git clone https://github.com/orenatobr/.hammerspoon ~/.hammerspoon
+   ```
+
+2. **Open Hammerspoon and click “Reload Config”**
+
+3. **Ensure Accessibility permissions are enabled**  
+   - You will be prompted on first use if not already granted.
+
+---
+
+## 🧠 Features
+
+- 🔁 **Window cycling**: Quickly switch between visible windows of the active app.
+- 💡 **Auto-brightness**: Adapts screen brightness based on conditions.
+- 🔒 **Auto-lock**: Locks screen when the lid or screen is lowered.
+- 🖱️ **Mouse movement for Teams**: Prevents idle status while in Teams meetings.
+- ☕ **FileZilla detection**: Keeps display awake if FileZilla is running.
+
+---
+
+## ⌨️ Example Hotkeys
+
+| Action                | Shortcut                |
+|-----------------------|-------------------------|
+| Cycle app windows     | `Alt + A` / `option + A`|
+| *(Other hotkeys configurable in code)*          |
 
 ---
 
 ## 📄 License
 
-MIT License — feel free to adapt this setup to your own workflow!
+This project is MIT licensed.
 
 ---
 
-## ✨ Author
-
-Renato F. Pereira  
-Senior Data Scientist & Mac automation enthusiast  
-🔗 [LinkedIn](https://www.linkedin.com/in/orenatobr)
+Made for personal productivity and Mac automation fun ✨
