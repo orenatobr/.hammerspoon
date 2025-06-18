@@ -1,6 +1,6 @@
 # 🍎 Hammerspoon Configuration
 
-This repository contains a modular configuration for [Hammerspoon](https://www.hammerspoon.org/) — a powerful automation tool for macOS, using Lua scripting. The goal is to provide practical automations like auto-lock, brightness control, app-based mouse keep-alive, and more.
+This repository contains a modular configuration for [Hammerspoon](https://www.hammerspoon.org/) — a powerful automation tool for macOS, using Lua scripting. The goal is to provide practical automations like auto-lock, brightness control, app-based mouse keep-alive, smart window focus restore, and more.
 
 ---
 
@@ -14,7 +14,8 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 │   ├── auto_lock.lua            # Locks screen when screen is lowered
 │   ├── filezilla_caffeinate.lua # Keeps system awake if FileZilla is running
 │   ├── teams_mouse.lua          # Moves mouse if Microsoft Teams is active
-│   └── window_cycle.lua         # Cycles windows within the current app
+│   ├── window_cycle.lua         # Cycles windows within the current app
+│   └── restore_last_window.lua  # Refocuses last meaningful window when app is reactivated
 ```
 
 ---
@@ -49,6 +50,7 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 - 🔒 **Auto-lock**: Locks screen when the lid or screen is lowered.
 - 🖱️ **Mouse movement for Teams**: Prevents idle status while in Teams meetings.
 - ☕ **FileZilla detection**: Keeps display awake if FileZilla is running.
+- 🧭 **Restore last focused window**: When an app is reactivated (e.g., via Dock or Cmd+Tab), this module restores the last meaningful, non-empty window previously used — ideal for apps like Microsoft Teams that default to a less useful window.
 
 ---
 
