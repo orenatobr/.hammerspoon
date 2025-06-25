@@ -6,7 +6,7 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 
 ## 📁 Structure
 
-```
+```text
 .hammerspoon/
 ├── init.lua                     # Main entry that loads all modules
 ├── modules/
