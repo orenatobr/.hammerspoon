@@ -1,11 +1,12 @@
 local M = {}
 
-local lastUsefulWindow = nil
+local appWatcher = nil
 local windowFilter = nil
-local appName = "Microsoft Teams"
+local lastUsefulWindow = nil
+local appName = "Microsoft Teams" -- adjust if needed
 
--- Tracks the last valid Teams window (ignores popups or empty titles)
-local function setupWindowFilter()
+-- Tracks the last focused useful window from Teams
+local function createWindowFilter()
     windowFilter = hs.window.filter.new(appName)
     windowFilter:subscribe(hs.window.filter.windowFocused, function(win)
         local ok, title = pcall(function()
@@ -18,42 +19,47 @@ local function setupWindowFilter()
     end)
 end
 
--- Attempts to refocus the last known good Teams window
-local function focusLastWindow()
-    if not lastUsefulWindow then
-        return
-    end
-    if not lastUsefulWindow:isStandard() or not lastUsefulWindow:isVisible() then
-        return
-    end
-
-    hs.timer.doAfter(0.3, function()
-        local front = hs.window.frontmostWindow()
-        if front and front:id() == lastUsefulWindow:id() then
-            return
-        end
-
-        local ok, title = pcall(function()
-            return lastUsefulWindow:title()
+-- Attempts to restore focus to the last Teams window
+local function handleAppActivated()
+    local win = lastUsefulWindow
+    if win and win:isStandard() and win:application():name() == appName then
+        hs.timer.doAfter(0.3, function()
+            local frontmost = hs.window.frontmostWindow()
+            if win:id() ~= frontmost:id() and win:isVisible() then
+                local ok, title = pcall(function()
+                    return win:title()
+                end)
+                if ok then
+                    print("🔁 [Teams] Refocusing useful window: " .. title)
+                    win:raise()
+                    win:focus()
+                end
+            end
         end)
-        if ok then
-            print("🔁 [Teams] Refocusing last known good window: " .. title)
-            lastUsefulWindow:focus()
-        end
-    end)
+    end
 end
 
--- Application watcher for Microsoft Teams only
-local function onAppEvent(app, eventType, appObj)
+-- Handles Teams activation only
+local function appEventHandler(app, eventType, appObj)
     if app == appName and eventType == hs.application.watcher.activated then
-        focusLastWindow()
+        if not windowFilter then
+            createWindowFilter()
+        end
+        handleAppActivated()
     end
 end
 
 function M.start()
-    setupWindowFilter()
-    hs.application.watcher.new(onAppEvent):start()
-    print("👀 Watching Microsoft Teams for window restoration.")
+    appWatcher = hs.application.watcher.new(appEventHandler)
+    appWatcher:start()
+    print("👀 Watching Microsoft Teams (restore last focused window)")
+end
+
+function M.stop()
+    if appWatcher then
+        appWatcher:stop()
+    end
+    print("🛑 Stopped Teams watcher")
 end
 
 return M
