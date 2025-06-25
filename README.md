@@ -15,7 +15,7 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 │   ├── filezilla_caffeinate.lua # Keeps system awake if FileZilla is running
 │   ├── teams_mouse.lua          # Moves mouse if Microsoft Teams is active
 │   ├── window_cycle.lua         # Cycles windows within the current app
-│   └── restore_last_window.lua  # Refocuses last meaningful window when app is reactivated
+│   └── teams_focus_restore.lua  # Refocuses last meaningful window when app is reactivated
 ```
 
 ---
@@ -50,7 +50,7 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 - 🔒 **Auto-lock**: Locks screen when the lid or screen is lowered.
 - 🖱️ **Mouse movement for Teams**: Prevents idle status while in Teams meetings.
 - ☕ **FileZilla detection**: Keeps display awake if FileZilla is running.
-- 🧭 **Restore last focused window**: When an app is reactivated (e.g., via Dock or Cmd+Tab), this module restores the last meaningful, non-empty window previously used — ideal for apps like Microsoft Teams that default to a less useful window.
+- 🧭 **Restore last focused teams window**: When an app is reactivated (e.g., via Dock or Cmd+Tab), this module restores the last meaningful, non-empty window previously used — ideal for apps like Microsoft Teams that default to a less useful window.
 
 ---
 
