@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Reload Hammerspoon",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "zsh",
+      "runtimeArgs": [
+        "-c",
+        "hs -c 'hs.reload()'"
+      ],
+      "console": "integratedTerminal",
+      "program": "${workspaceFolder}/noop.js",
+      "skipFiles": []
+    }
+  ]
+}

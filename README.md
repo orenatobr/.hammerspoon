@@ -43,6 +43,68 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 
 ---
 
+## 🔧 Optional CLI Integration
+
+To reload your configuration from the terminal or from VSCode, you can set up a custom CLI command:
+
+### Create a custom `hs` executable:
+
+```bash
+sudo tee /usr/local/bin/hs > /dev/null <<'EOF'
+#!/bin/bash
+osascript <<EOD
+tell application "System Events"
+    tell process "Hammerspoon"
+        click menu item "Reload Config" of menu "File" of menu bar 1
+    end tell
+end tell
+EOD
+EOF
+```
+
+```bash
+sudo chmod +x /usr/local/bin/hs
+```
+
+Then you can reload config from anywhere using:
+
+```bash
+hs
+```
+
+---
+
+## 💻 VSCode Integration
+
+You can integrate the reload into your development workflow using VSCode’s **Run and Debug** menu:
+
+### `launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Reload Hammerspoon",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "zsh",
+      "runtimeArgs": [
+        "-c",
+        "hs -c 'hs.reload()'"
+      ],
+      "console": "integratedTerminal",
+      "program": "${workspaceFolder}/noop.js",
+      "skipFiles": []
+    }
+  ]
+}
+```
+
+Then run the command from the Run and Debug panel using **"Reload Hammerspoon via zsh"**.
+
+---
+
 ## 🧠 Features
 
 - 🔁 **Window cycling**: Quickly switch between visible windows of the active app.
