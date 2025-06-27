@@ -1,1 +1,1 @@
-// noop placeholder
+process.exit(0);

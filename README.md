@@ -16,6 +16,7 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 │   ├── teams_mouse.lua          # Moves mouse if Microsoft Teams is active
 │   ├── window_cycle.lua         # Cycles windows within the current app
 │   └── teams_focus_restore.lua  # Refocuses last meaningful window when app is reactivated
+|   └── launchpad_hotkey.lua     # Keyboard shortcut for lauchpad
 ```
 
 ---
@@ -85,29 +86,26 @@ You can integrate the reload into your development workflow using VSCode’s **R
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Reload Hammerspoon",
+      "name": "🔁 Reload Hammerspoon via CLI",
       "type": "node",
       "request": "launch",
-      "runtimeExecutable": "zsh",
-      "runtimeArgs": [
-        "-c",
-        "hs -c 'hs.reload()'"
-      ],
-      "console": "integratedTerminal",
       "program": "${workspaceFolder}/noop.js",
-      "skipFiles": []
+      "preLaunchTask": "Reload Hammerspoon Config",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
     }
   ]
 }
 ```
 
-Then run the command from the Run and Debug panel using **"Reload Hammerspoon via zsh"**.
+Then run the command from the Run and Debug panel using **"🔁 Reload Hammerspoon via CLI"**.
 
 ---
 
 ## 🧠 Features
 
 - 🔁 **Window cycling**: Quickly switch between visible windows of the active app.
+- ⌨️ **Launch Pad Shortcut**: Keyboard shortcut for Launch Pad.
 - 💡 **Auto-brightness**: Adapts screen brightness based on conditions.
 - 🔒 **Auto-lock**: Locks screen when the lid or screen is lowered.
 - 🖱️ **Mouse movement for Teams**: Prevents idle status while in Teams meetings.
@@ -120,7 +118,8 @@ Then run the command from the Run and Debug panel using **"Reload Hammerspoon vi
 
 | Action                | Shortcut                |
 |-----------------------|-------------------------|
-| Cycle app windows     | `Alt + A` / `option + A`|
+| Cycle app windows     | `Alt + C` / `option + C`|
+| Launchpad.            | `Alt + A` / `option + A`|
 | *(Other hotkeys configurable in code)*          |
 
 ---

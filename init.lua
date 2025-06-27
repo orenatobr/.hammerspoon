@@ -1,6 +1,7 @@
 -- Load local modules
 local autoBrightness = require("modules.auto_brightness")
 local windowCycle = require("modules.window_cycle")
+local launchPadShortcut = require("modules.launchpad_hotkey")
 local filezillaCaffeinate = require("modules.filezilla_caffeinate")
 local teamsMouse = require("modules.teams_mouse")
 local autoLock = require("modules.auto_lock")
@@ -15,6 +16,7 @@ teamsFocus.start()
 
 -- Bind hotkeys
 windowCycle.bindHotkey()
+launchPadShortcut.bindHotkey()
 
 -- Initialization
 print("✅ Hammerspoon Productivity Toolkit initialized.")

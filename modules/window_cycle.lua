@@ -1,7 +1,7 @@
 local M = {}
 
 function M.bindHotkey()
-    hs.hotkey.bind({"alt"}, "A", function()
+    hs.hotkey.bind({"alt"}, "C", function()
         local app = hs.application.frontmostApplication()
         local windows = hs.fnutils.filter(app:allWindows(), function(w)
             return w:isStandard() and w:isVisible()

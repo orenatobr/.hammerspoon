@@ -2,17 +2,13 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Reload Hammerspoon",
+      "name": "🔁 Reload Hammerspoon via CLI",
       "type": "node",
       "request": "launch",
-      "runtimeExecutable": "zsh",
-      "runtimeArgs": [
-        "-c",
-        "hs -c 'hs.reload()'"
-      ],
-      "console": "integratedTerminal",
       "program": "${workspaceFolder}/noop.js",
-      "skipFiles": []
+      "preLaunchTask": "Reload Hammerspoon Config",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
     }
   ]
 }
