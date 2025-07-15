@@ -17,6 +17,7 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 │   ├── window_cycle.lua         # Cycles windows within the current app
 │   └── teams_focus_restore.lua  # Refocuses last meaningful window when app is reactivated
 |   └── launchpad_hotkey.lua     # Keyboard shortcut for lauchpad
+|   └── refresh_hotkey.lua       # Keyboard shortcut for refresh page
 ```
 
 ---
@@ -48,7 +49,7 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 
 To reload your configuration from the terminal or from VSCode, you can set up a custom CLI command:
 
-### Create a custom `hs` executable:
+### Create a custom `hs` executable
 
 ```bash
 sudo tee /usr/local/bin/hs > /dev/null <<'EOF'
@@ -79,7 +80,7 @@ hs
 
 You can integrate the reload into your development workflow using VSCode’s **Run and Debug** menu:
 
-### `launch.json`:
+### `launch.json`
 
 ```json
 {
@@ -106,6 +107,7 @@ Then run the command from the Run and Debug panel using **"🔁 Reload Hammerspo
 
 - 🔁 **Window cycling**: Quickly switch between visible windows of the active app.
 - ⌨️ **Launch Pad Shortcut**: Keyboard shortcut for Launch Pad.
+- ⌨️ **Refresh page**: Keyboard shortcut for refresh page (empty cache + reload page).
 - 💡 **Auto-brightness**: Adapts screen brightness based on conditions.
 - 🔒 **Auto-lock**: Locks screen when the lid or screen is lowered.
 - 🖱️ **Mouse movement for Teams**: Prevents idle status while in Teams meetings.
@@ -119,8 +121,9 @@ Then run the command from the Run and Debug panel using **"🔁 Reload Hammerspo
 | Action                | Shortcut                |
 |-----------------------|-------------------------|
 | Cycle app windows     | `Alt + C` / `option + C`|
-| Launchpad.            | `Alt + A` / `option + A`|
-| *(Other hotkeys configurable in code)*          |
+| Launchpad             | `Alt + A` / `option + A`|
+| Refresh page          | `Alt + R` / `option + R`|
+| *(Other hotkeys configurable in code)* |        |
 
 ---
 

@@ -6,6 +6,7 @@ local filezillaCaffeinate = require("modules.filezilla_caffeinate")
 local teamsMouse = require("modules.teams_mouse")
 local autoLock = require("modules.auto_lock")
 local teamsFocus = require("modules.teams_focus_restore")
+local refreshPage = require("modules.refresh_hotkey")
 
 -- Start scheduled automations
 autoBrightness.start()
@@ -17,6 +18,7 @@ teamsFocus.start()
 -- Bind hotkeys
 windowCycle.bindHotkey()
 launchPadShortcut.bindHotkey()
+refreshPage.bindHotkey()
 
 -- Initialization
 print("✅ Hammerspoon Productivity Toolkit initialized.")
