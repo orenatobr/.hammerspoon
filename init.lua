@@ -7,6 +7,7 @@ local teamsMouse = require("modules.teams_mouse")
 local autoLock = require("modules.auto_lock")
 local teamsFocus = require("modules.teams_focus_restore")
 local refreshPage = require("modules.refresh_hotkey")
+local awsTabMonitor = require("modules.aws_tab_monitor")
 
 -- Start scheduled automations
 autoBrightness.start()
@@ -14,6 +15,7 @@ filezillaCaffeinate.start()
 teamsMouse.start()
 autoLock.start()
 teamsFocus.start()
+awsTabMonitor.start()
 
 -- Bind hotkeys
 windowCycle.bindHotkey()

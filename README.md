@@ -18,6 +18,7 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 │   └── teams_focus_restore.lua  # Refocuses last meaningful window when app is reactivated
 |   └── launchpad_hotkey.lua     # Keyboard shortcut for lauchpad
 |   └── refresh_hotkey.lua       # Keyboard shortcut for refresh page
+|   └── aws_tab_monitor.lua      # Notifications for AWS account
 ```
 
 ---
@@ -54,13 +55,7 @@ To reload your configuration from the terminal or from VSCode, you can set up a 
 ```bash
 sudo tee /usr/local/bin/hs > /dev/null <<'EOF'
 #!/bin/bash
-osascript <<EOD
-tell application "System Events"
-    tell process "Hammerspoon"
-        click menu item "Reload Config" of menu "File" of menu bar 1
-    end tell
-end tell
-EOD
+open -g -a "Hammerspoon" --args -r
 EOF
 ```
 
@@ -113,6 +108,7 @@ Then run the command from the Run and Debug panel using **"🔁 Reload Hammerspo
 - 🖱️ **Mouse movement for Teams**: Prevents idle status while in Teams meetings.
 - ☕ **FileZilla detection**: Keeps display awake if FileZilla is running.
 - 🧭 **Restore last focused teams window**: When an app is reactivated (e.g., via Dock or Cmd+Tab), this module restores the last meaningful, non-empty window previously used — ideal for apps like Microsoft Teams that default to a less useful window.
+- 🧭 **AWS Tab Monitor**: Add AWS account detection in Safari tabs with custom alerts
 
 ---
 
