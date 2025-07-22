@@ -2,6 +2,7 @@ local M = {}
 
 local timer = nil
 local lastAccount = nil
+local appWatcher = nil
 
 local accountMap = {
     ["376714490571"] = "🔵 fsm-preprod",
@@ -49,16 +50,36 @@ local function checkAWSAccount()
 end
 
 function M.start()
-    timer = hs.timer.doEvery(1, checkAWSAccount)
-    print("🧪 AWS Account Monitor started")
-    checkAWSAccount()
+    appWatcher = hs.application.watcher.new(function(appName, eventType, app)
+        if appName == "Safari" then
+            if eventType == hs.application.watcher.activated then
+                if not timer then
+                    timer = hs.timer.doEvery(1, checkAWSAccount)
+                    print("▶️ Started polling AWS account (Safari in focus)")
+                end
+            elseif eventType == hs.application.watcher.deactivated then
+                if timer then
+                    timer:stop()
+                    timer = nil
+                    print("⏹️ Stopped polling AWS account (Safari lost focus)")
+                end
+            end
+        end
+    end)
+    appWatcher:start()
+    print("🧪 AWS Account Monitor (hybrid watcher) started")
 end
 
 function M.stop()
     if timer then
         timer:stop()
-        print("🛑 AWS Account Monitor stopped")
+        timer = nil
     end
+    if appWatcher then
+        appWatcher:stop()
+        appWatcher = nil
+    end
+    print("🛑 AWS Account Monitor (hybrid watcher) stopped")
 end
 
 return M
