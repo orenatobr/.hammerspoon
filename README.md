@@ -8,17 +8,19 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 
 ```text
 .hammerspoon/
-├── init.lua                     # Main entry that loads all modules
+├── init.lua                          # Main entry that loads all modules
 ├── modules/
-│   ├── auto_brightness.lua      # Adjusts screen brightness automatically
-│   ├── auto_lock.lua            # Locks screen when screen is lowered
-│   ├── filezilla_caffeinate.lua # Keeps system awake if FileZilla is running
-│   ├── teams_mouse.lua          # Moves mouse if Microsoft Teams is active
-│   ├── window_cycle.lua         # Cycles windows within the current app
-│   └── teams_focus_restore.lua  # Refocuses last meaningful window when app is reactivated
-|   └── launchpad_hotkey.lua     # Keyboard shortcut for lauchpad
-|   └── refresh_hotkey.lua       # Keyboard shortcut for refresh page
-|   └── aws_tab_monitor.lua      # Notifications for AWS account
+│   ├── auto_brightness.lua           # Adjusts screen brightness automatically
+│   ├── auto_lock.lua                 # Locks screen when screen is lowered
+│   ├── filezilla_caffeinate.lua      # Keeps system awake if FileZilla is running
+│   ├── teams_mouse.lua               # Moves mouse if Microsoft Teams is active
+│   ├── window_cycle.lua              # Cycles windows within the current app
+│   └── teams_focus_restore.lua       # Refocuses last meaningful window when app is reactivated
+|   └── launchpad_hotkey.lua          # Keyboard shortcut for lauchpad
+|   └── refresh_hotkey.lua            # Keyboard shortcut for refresh page
+|   └── aws_tab_monitor.lua           # Notifications for AWS account
+|   └── safari_window_manager.lua     # Sends Safari to the left half of the second screen
+|   └── vscode_window_manager.lua     # Sends VSCode to the right half of the second screen
 ```
 
 ---
@@ -109,6 +111,9 @@ Then run the command from the Run and Debug panel using **"🔁 Reload Hammerspo
 - ☕ **FileZilla detection**: Keeps display awake if FileZilla is running.
 - 🧭 **Restore last focused teams window**: When an app is reactivated (e.g., via Dock or Cmd+Tab), this module restores the last meaningful, non-empty window previously used — ideal for apps like Microsoft Teams that default to a less useful window.
 - 🧭 **AWS Tab Monitor**: Add AWS account detection in Safari tabs with custom alerts
+- 🪟 **Auto-window positioning (multi-monitor)**:
+  - Safari → moves to the **left half** of the second monitor
+  - VSCode → moves to the **right half** of the second monitor
 
 ---
 

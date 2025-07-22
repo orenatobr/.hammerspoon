@@ -8,6 +8,8 @@ local autoLock = require("modules.auto_lock")
 local teamsFocus = require("modules.teams_focus_restore")
 local refreshPage = require("modules.refresh_hotkey")
 local awsTabMonitor = require("modules.aws_tab_monitor")
+local safariManager = require("modules.safari_window_manager")
+local vscodeManager = require("modules.vscode_window_manager")
 
 -- Start scheduled automations
 autoBrightness.start()
@@ -16,6 +18,8 @@ teamsMouse.start()
 autoLock.start()
 teamsFocus.start()
 awsTabMonitor.start()
+safariManager.start()
+vscodeManager.start()
 
 -- Bind hotkeys
 windowCycle.bindHotkey()
