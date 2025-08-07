@@ -17,19 +17,21 @@ It includes practical automations such as:
 
 ```text
 .hammerspoon/
-├── init.lua                          # Main entry point that loads all modules
+├── init.lua                          # Main entry that loads all modules
 ├── modules/
 │   ├── auto_brightness.lua           # Adjusts screen brightness automatically
-│   ├── auto_lock.lua                 # Locks screen when lid is closed or screen is lowered
-│   ├── filezilla_caffeinate.lua      # Keeps system awake when FileZilla is running
+│   ├── auto_lock.lua                 # Locks screen when screen is lowered
+│   ├── filezilla_caffeinate.lua      # Keeps system awake if FileZilla is running
 │   ├── teams_mouse.lua               # Moves mouse if Microsoft Teams is active
-│   ├── window_cycle.lua              # Cycles through app windows
-│   ├── teams_focus_restore.lua       # Restores last focused Teams window on reactivation
-│   ├── launchpad_hotkey.lua          # Keyboard shortcut for Launchpad
-│   ├── refresh_hotkey.lua            # Keyboard shortcut for full page refresh
-│   ├── aws_tab_monitor.lua           # Detects AWS account in Safari tabs
+│   ├── window_cycle.lua              # Cycles windows within the current app
+│   ├── teams_focus_restore.lua       # Refocuses last meaningful window when app is reactivated
+│   ├── launchpad_hotkey.lua          # Keyboard shortcut for lauchpad
+│   ├── refresh_hotkey.lua            # Keyboard shortcut for refresh page
+│   ├── aws_tab_monitor.lua           # Notifications for AWS account
 │   ├── safari_window_manager.lua     # Sends Safari to the left half of the second screen
-│   └── vscode_window_manager.lua     # Sends VSCode to the right half of the second screen
+│   ├── vscode_window_manager.lua     # Sends VSCode to the right half of the second screen
+│   ├── app_switcher.lua              # Custom app switcher with chooser
+│   ├── safari_tab_switcher.lua       # Custom Safari tab switcher with chooser
 ```
 
 ---
@@ -122,31 +124,34 @@ Use a custom launch configuration to reload Hammerspoon directly from the **Run 
 
 ---
 
-## ✨ Features Overview
+## 🧠 Features
 
-| Feature                        | Description                                                   |
-| ------------------------------ | ------------------------------------------------------------- |
-| 🔁 Window cycling              | Quickly switch between visible windows of the active app      |
-| ⌨️ Launchpad hotkey            | Opens macOS Launchpad with a shortcut                         |
-| 🔄 Refresh page hotkey         | Full browser page refresh (empty cache)                       |
-| 💡 Auto-brightness             | Dynamically adjusts screen brightness                         |
-| 🔒 Auto-lock                   | Locks screen when lid is closed or screen is lowered          |
-| 🖱️ Teams anti-idle             | Prevents Teams from marking you away by auto-moving the mouse |
-| ☕ FileZilla keep-awake        | Keeps system awake when FileZilla is running                  |
-| 🧭 Teams focus restore         | Brings back last useful Teams window when app is reactivated  |
-| 🧭 AWS tab detection in Safari | Alerts when an AWS account is detected in open Safari tabs    |
-| 🪟 Multi-monitor window layout | Safari and VSCode auto-positioning on external displays       |
+- 🔁 **Window cycling**: Quickly switch between visible windows of the active app.
+- ⌨️ **Launch Pad Shortcut**: Keyboard shortcut for Launch Pad.
+- ⌨️ **Refresh page**: Keyboard shortcut for refresh page (empty cache + reload page).
+- 💡 **Auto-brightness**: Adapts screen brightness based on conditions.
+- 🔒 **Auto-lock**: Locks screen when the lid or screen is lowered.
+- 🖱️ **Mouse movement for Teams**: Prevents idle status while in Teams meetings.
+- ☕ **FileZilla detection**: Keeps display awake if FileZilla is running.
+- 🧭 **Restore last focused Teams window**: When an app is reactivated (e.g., via Dock or Cmd+Tab), this module restores the last meaningful, non-empty window previously used — ideal for apps like Microsoft Teams that default to a less useful window.
+- 🧭 **AWS Tab Monitor**: Add AWS account detection in Safari tabs with custom alerts.
+- 🪟 **Auto-window positioning (multi-monitor)**:
+  - Safari → moves to the **left half** of the second monitor
+  - VSCode → moves to the **right half** of the second monitor
+- 🔀 **App Switcher**: `Option + Z` opens a custom app switcher with keyboard navigation and chooser UI.
+- 📑 **Safari Tab Switcher**: `Option + S` opens a searchable chooser for all open Safari tabs.
 
 ---
 
-## ⌨️ Default Hotkeys
+## ⌨️ Example Hotkeys
 
-| Action                                         | Shortcut                 |
-| ---------------------------------------------- | ------------------------ |
-| Cycle app windows                              | `Alt + C` / `Option + C` |
-| Launchpad                                      | `Alt + A` / `Option + A` |
-| Refresh page                                   | `Alt + R` / `Option + R` |
-| _(Other hotkeys are configurable in the code)_ |                          |
+| Action                | Shortcut                |
+|-----------------------|-------------------------|
+| Cycle app windows     | `Alt + C` / `option + C`|
+| Launchpad             | `Alt + A` / `option + A`|
+| Refresh page          | `Alt + R` / `option + R`|
+| App Switcher          | `Alt + Z` / `option + Z`|
+| Safari Tab Switcher   | `Alt + S` / `option + S`|
 
 ---
 
