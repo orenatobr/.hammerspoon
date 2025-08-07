@@ -10,6 +10,8 @@ local refreshPage = require("modules.refresh_hotkey")
 local awsTabMonitor = require("modules.aws_tab_monitor")
 local safariManager = require("modules.safari_window_manager")
 local vscodeManager = require("modules.vscode_window_manager")
+local tabNavigation = require("modules.tab_navigation")
+local appNavigation = require("modules.app_navigation")
 
 -- Start scheduled automations
 autoBrightness.start()
@@ -25,6 +27,8 @@ vscodeManager.start()
 windowCycle.bindHotkey()
 launchPadShortcut.bindHotkey()
 refreshPage.bindHotkey()
+tabNavigation.bindHotkey()
+appNavigation.bindHotkey()
 
 -- Initialization
 print("✅ Hammerspoon Productivity Toolkit initialized.")
