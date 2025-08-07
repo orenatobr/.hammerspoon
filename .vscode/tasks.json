@@ -1,17 +1,17 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "Reload Hammerspoon Config",
-            "type": "shell",
-            "command": "hs",
-            "args": [],
-            "problemMatcher": [],
-            "presentation": {
-                "echo": true,
-                "reveal": "never",
-                "panel": "shared"
-            }
-        }
-    ]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Reload Hammerspoon Config",
+      "type": "shell",
+      "command": "hs",
+      "args": [],
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "never",
+        "panel": "shared"
+      }
+    }
+  ]
 }
