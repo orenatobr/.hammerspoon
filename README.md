@@ -1,10 +1,19 @@
 # 🍎 Hammerspoon Configuration
 
-This repository contains a modular configuration for [Hammerspoon](https://www.hammerspoon.org/) — a powerful automation tool for macOS, using Lua scripting. The goal is to provide practical automations like auto-lock, brightness control, app-based mouse keep-alive, smart window focus restore, and more.
+This repository contains a **modular configuration for [Hammerspoon](https://www.hammerspoon.org/)** — a powerful automation tool for macOS using Lua scripting.
+
+It includes practical automations such as:
+
+- Auto-lock when screen/lid closes
+- Smart window focus restore for Microsoft Teams
+- Auto-brightness control
+- Safari and VSCode window positioning
+- Hotkeys for Launchpad and hard-refresh
+- App-specific keep-awake mechanisms
 
 ---
 
-## 📁 Structure
+## 📁 Folder Structure
 
 ```text
 .hammerspoon/
@@ -29,57 +38,70 @@ This repository contains a modular configuration for [Hammerspoon](https://www.h
 
 ## ⚙️ Requirements
 
-- macOS
+- macOS (Apple Silicon compatible)
 - [Hammerspoon](https://www.hammerspoon.org/) installed
-- Accessibility permissions granted to Hammerspoon (via System Settings > Privacy & Security)
+- Accessibility permissions granted:
+  - **System Settings → Privacy & Security → Accessibility**
 
 ---
 
 ## 🚀 Installation
 
-1. **Clone this repository:**
+1. **Install Hammerspoon via Homebrew:**
 
    ```bash
-   git clone https://github.com/orenatobr/.hammerspoon ~/.hammerspoon
+   brew install --cask hammerspoon
    ```
 
-2. **Open Hammerspoon and click “Reload Config”**
+2. **Sync with remote if you already have the folder:**
 
-3. **Ensure Accessibility permissions are enabled**  
-   - You will be prompted on first use if not already granted.
+   ```bash
+   cd ~/.hammerspoon
+   git init
+   git remote add origin git@github.com:orenatobr/.hammerspoon.git
+   git fetch origin
+   git reset --hard origin/main
+   ```
+
+3. **Open Hammerspoon** and click **"Reload Config"** in the menu.
+
+4. **Grant Accessibility Permissions**  
+   You'll be prompted automatically if not already granted.
 
 ---
 
-## 🔧 Optional CLI Integration
+## 🧪 Optional CLI Integration
 
-To reload your configuration from the terminal or from VSCode, you can set up a custom CLI command:
+Set up a global terminal command to reload Hammerspoon from anywhere:
 
-### Create a custom `hs` executable
+### ✅ Create an `hs` command
 
 ```bash
-sudo tee /usr/local/bin/hs > /dev/null <<'EOF'
+sudo tee /opt/homebrew/bin/hs > /dev/null <<'EOF'
 #!/bin/bash
 open -g -a "Hammerspoon" --args -r
 EOF
+
+sudo chmod +x /opt/homebrew/bin/hs
 ```
 
-```bash
-sudo chmod +x /usr/local/bin/hs
-```
+> This works on Apple Silicon. If you're on Intel, use `/usr/local/bin/hs`.
 
-Then you can reload config from anywhere using:
+Now you can run:
 
 ```bash
 hs
 ```
 
+To reload the Hammerspoon configuration from the terminal.
+
 ---
 
 ## 💻 VSCode Integration
 
-You can integrate the reload into your development workflow using VSCode’s **Run and Debug** menu:
+Use a custom launch configuration to reload Hammerspoon directly from the **Run & Debug panel**.
 
-### `launch.json`
+### `.vscode/launch.json`
 
 ```json
 {
@@ -98,7 +120,7 @@ You can integrate the reload into your development workflow using VSCode’s **R
 }
 ```
 
-Then run the command from the Run and Debug panel using **"🔁 Reload Hammerspoon via CLI"**.
+> You can also create a shell task named `"Reload Hammerspoon Config"` in `.vscode/tasks.json`.
 
 ---
 
@@ -133,10 +155,11 @@ Then run the command from the Run and Debug panel using **"🔁 Reload Hammerspo
 
 ---
 
-## 📄 License
+## 📜 License
 
-This project is MIT licensed.
+This project is licensed under the **MIT License**.
 
 ---
 
-Made for personal productivity and Mac automation fun ✨
+Crafted for personal productivity and Mac automation fun ✨  
+Feel free to fork and adapt to your workflow!
