@@ -51,6 +51,7 @@ This config focuses on window management, app-aware behaviors (Safari, VS Code, 
    ```
 
    _(Or copy the files there.)_
+
 3. Reload the config:
    - Hammerspoon menu → **Reload Config**, or
    - `hs.reload()` from the Hammerspoon console.
@@ -169,7 +170,7 @@ Go to **System Settings → Privacy & Security**:
 
 ## Repository structure
 
-```
+```text
 .hammerspoon/
 ├── init.lua
 ├── modules/
@@ -190,3 +191,28 @@ Go to **System Settings → Privacy & Security**:
 │   └── tasks.json
 └── .github/CODEOWNERS
 ```
+
+## 🧪 Optional CLI Integration
+
+Set up a global terminal command to reload Hammerspoon from anywhere:
+
+### ✅ Create an `hs` command
+
+```bash
+sudo tee /opt/homebrew/bin/hs > /dev/null <<'EOF'
+#!/bin/bash
+open -g -a "Hammerspoon" --args -r
+EOF
+
+sudo chmod +x /opt/homebrew/bin/hs
+```
+
+> This works on Apple Silicon. If you're on Intel, use `/usr/local/bin/hs`.
+
+Now you can run:
+
+```bash
+hs
+```
+
+To reload the Hammerspoon configuration from the terminal.
