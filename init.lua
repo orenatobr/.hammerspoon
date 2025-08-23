@@ -12,6 +12,7 @@ local safariManager = require("modules.safari_window_manager")
 local vscodeManager = require("modules.vscode_window_manager")
 local tabNavigation = require("modules.tab_navigation")
 local appNavigation = require("modules.app_navigation")
+local autoFullscreen = require("modules.auto_fullscreen")
 
 -- Start scheduled automations
 autoBrightness.start()
@@ -22,6 +23,11 @@ autoLock.start()
 -- awsTabMonitor.start()
 safariManager.start()
 vscodeManager.start()
+autoFullscreen.start({
+    native_fullscreen = false, -- true = macOS native fullscreen
+    internal_hint = "Built%-in",
+    exclude_apps = {"Terminal", "iTerm2"} -- customize if needed
+})
 
 -- Bind hotkeys
 windowCycle.bindHotkey()
