@@ -4,7 +4,9 @@ local M = {}
 M.config = {
     native_fullscreen = false, -- false = maximize (Spectacle style), true = macOS native fullscreen (Spaces)
     internal_hint = "Built%-in", -- hint to detect internal screen name
-    exclude_apps = {"Terminal", "iTerm2"} -- apps to ignore
+    exclude_apps = {"Terminal", "iTerm2"}, -- apps to ignore
+    screens_settle_seconds = 2.0, -- pause after screens change
+    quarantine_seconds = 12.0 -- skip windows auto-fullscreen if they were moved by a screens change
 }
 
 -- ========================
@@ -12,6 +14,14 @@ M.config = {
 -- ========================
 local function internalScreen(config)
     return hs.screen.find(config.internal_hint) or hs.screen.primaryScreen()
+end
+
+local function screenUUID(scr)
+    if not scr then
+        return nil
+    end
+    -- Use dot to *check* method existence, colon to *call* it
+    return (scr.getUUID and scr:getUUID()) or (scr:name() .. ":" .. tostring(scr:id()))
 end
 
 local function isOnInternalScreen(win, config)
@@ -22,11 +32,11 @@ local function isOnInternalScreen(win, config)
     if not scr then
         return false
     end
-    return scr == internalScreen(config)
+    return screenUUID(scr) == screenUUID(internalScreen(config))
 end
 
 local function isExcluded(win, config)
-    local app = win:application()
+    local app = win and win:application()
     if not app then
         return false
     end
@@ -51,7 +61,6 @@ local function fillWindow(win, config)
     if not win or not win:isStandard() or isExcluded(win, config) then
         return
     end
-
     if config.native_fullscreen then
         if not win:isFullScreen() then
             win:setFullScreen(true)
@@ -62,19 +71,66 @@ local function fillWindow(win, config)
     end
 end
 
-local function safelyFill(win, config)
-    hs.timer.doAfter(0.2, function()
-        if win and win:isStandard() and isOnInternalScreen(win, config) and not isExcluded(win, config) then
-            fillWindow(win, config)
-        end
-    end)
-end
-
 -- ========================
 -- State
 -- ========================
 M._wf = nil
 M._running = false
+
+M._screensChanging = false
+M._screensChangeTimer = nil
+M._lastScreenChangeAt = 0
+
+M._winLastScreen = {} -- [win:id()] = screenUUID
+M._quarantine = {} -- [win:id()] = epochSecondsExpiry
+
+local function now()
+    return hs.timer.secondsSinceEpoch()
+end
+
+local function inQuarantine(win)
+    local id = win and win:id()
+    if not id then
+        return false
+    end
+    local exp = M._quarantine[id]
+    if not exp then
+        return false
+    end
+    if now() < exp then
+        return true
+    end
+    M._quarantine[id] = nil
+    return false
+end
+
+local function markQuarantine(win, seconds)
+    local id = win and win:id()
+    if not id then
+        return
+    end
+    M._quarantine[id] = now() + (seconds or M.config.quarantine_seconds)
+end
+
+local function rememberScreen(win)
+    local id = win and win:id()
+    if not id then
+        return
+    end
+    local scr = win:screen()
+    if not scr then
+        return
+    end
+    M._winLastScreen[id] = screenUUID(scr)
+end
+
+local function lastScreenUUID(win)
+    local id = win and win:id()
+    if not id then
+        return nil
+    end
+    return M._winLastScreen[id]
+end
 
 local function ensureFilter()
     if M._wf then
@@ -82,6 +138,60 @@ local function ensureFilter()
     end
     M._wf = hs.window.filter.new()
     return M._wf
+end
+
+local function safelyFill(win, config)
+    hs.timer.doAfter(0.2, function()
+        if not win or not win:isStandard() then
+            return
+        end
+        if M._screensChanging then
+            return
+        end
+        if inQuarantine(win) then
+            return
+        end
+        if isOnInternalScreen(win, config) and not isExcluded(win, config) then
+            fillWindow(win, config)
+        end
+    end)
+end
+
+-- ========================
+-- Watchers
+-- ========================
+local function handleScreensChanged()
+    M._screensChanging = true
+    M._lastScreenChangeAt = now()
+    if M._screensChangeTimer then
+        M._screensChangeTimer:stop()
+    end
+    M._screensChangeTimer = hs.timer.doAfter(M.config.screens_settle_seconds, function()
+        M._screensChanging = false
+        for id, exp in pairs(M._quarantine) do
+            if now() > exp + 30 then
+                M._quarantine[id] = nil
+            end
+        end
+        print("[auto_fullscreen] screens settled")
+    end)
+    print("[auto_fullscreen] screens changing...")
+end
+
+local function subscribeWatchers()
+    if not M._screenWatcher then
+        M._screenWatcher = hs.screen.watcher.new(handleScreensChanged)
+        M._screenWatcher:start()
+    end
+    if not M._cafWatcher then
+        M._cafWatcher = hs.caffeinate.watcher.new(function(event)
+            if event == hs.caffeinate.watcher.screensDidSleep or event == hs.caffeinate.watcher.screensDidWake or event ==
+                hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.systemDidWake then
+                handleScreensChanged()
+            end
+        end)
+        M._cafWatcher:start()
+    end
 end
 
 -- ========================
@@ -93,7 +203,6 @@ function M.start(opts)
         return
     end
 
-    -- merge config with user options
     M.config = hs.fnutils.copy(M.config)
     if type(opts) == "table" then
         for k, v in pairs(opts) do
@@ -101,19 +210,67 @@ function M.start(opts)
         end
     end
 
+    subscribeWatchers()
     local wf = ensureFilter()
 
     wf:subscribe(hs.window.filter.windowCreated, function(win)
+        rememberScreen(win)
+        if M._screensChanging then
+            return
+        end
+        if inQuarantine(win) then
+            return
+        end
         safelyFill(win, M.config)
     end)
+
     wf:subscribe(hs.window.filter.windowMoved, function(win)
+        if not win or not win:isStandard() then
+            return
+        end
+        local prevUUID = lastScreenUUID(win)
+        local currScr = win:screen()
+        local currUUID = screenUUID(currScr)
+        local internalUUID = screenUUID(internalScreen(M.config))
+
+        if M._screensChanging and prevUUID and prevUUID ~= internalUUID and currUUID == internalUUID then
+            markQuarantine(win, M.config.quarantine_seconds)
+            print(string.format(
+                "[auto_fullscreen] quarantined win %s for %.1fs (external→internal during screens change)",
+                tostring(win:id()), M.config.quarantine_seconds))
+        end
+
+        rememberScreen(win)
+
+        if M._screensChanging then
+            return
+        end
+        if inQuarantine(win) then
+            return
+        end
         if isOnInternalScreen(win, M.config) then
             fillWindow(win, M.config)
         end
     end)
+
     wf:subscribe(hs.window.filter.windowFocused, function(win)
+        if M._screensChanging then
+            return
+        end
+        if inQuarantine(win) then
+            return
+        end
         if isOnInternalScreen(win, M.config) then
             fillWindow(win, M.config)
+        end
+    end)
+
+    wf:subscribe(hs.window.filter.windowUnminimized, function(win)
+        if not win then
+            return
+        end
+        if not isOnInternalScreen(win, M.config) then
+            M._quarantine[win:id()] = nil
         end
     end)
 
@@ -127,6 +284,18 @@ function M.stop()
     end
     if M._wf then
         M._wf:unsubscribeAll()
+    end
+    if M._screenWatcher then
+        M._screenWatcher:stop();
+        M._screenWatcher = nil
+    end
+    if M._cafWatcher then
+        M._cafWatcher:stop();
+        M._cafWatcher = nil
+    end
+    if M._screensChangeTimer then
+        M._screensChangeTimer:stop();
+        M._screensChangeTimer = nil
     end
     M._running = false
     hs.alert.show("🛑 Auto-fullscreen disabled")
