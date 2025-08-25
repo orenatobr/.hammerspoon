@@ -24,9 +24,11 @@ awsTabMonitor.start()
 safariManager.start()
 vscodeManager.start()
 autoFullscreen.start({
-    native_fullscreen = false, -- true = macOS native fullscreen
+    native_fullscreen = false,
     internal_hint = "Built%-in",
-    exclude_apps = {"Terminal", "iTerm2"} -- customize if needed
+    exclude_apps = {"Terminal", "iTerm2"},
+    center_only_apps = {"System Settings", "Archive Utility"},
+    center_only_bundle_ids = {"com.apple.systemsettings", "com.apple.archiveutility"}
 })
 
 -- Bind hotkeys

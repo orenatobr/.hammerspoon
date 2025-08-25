@@ -4,9 +4,17 @@ local M = {}
 M.config = {
     native_fullscreen = false, -- false = maximize (Spectacle style), true = macOS native fullscreen (Spaces)
     internal_hint = "Built%-in", -- hint to detect internal screen name
-    exclude_apps = {"Terminal", "iTerm2"}, -- apps to ignore
+    exclude_apps = {"Terminal", "iTerm2"}, -- apps to ignore (never touch)
     screens_settle_seconds = 2.0, -- pause after screens change
-    quarantine_seconds = 12.0 -- skip windows auto-fullscreen if they were moved by a screens change
+    quarantine_seconds = 12.0, -- skip windows auto-fullscreen if moved by a screens change
+
+    -- NEW: center-only rules (do not maximize; just center H+V)
+    center_only_apps = {"System Settings", "System Preferences", "Archive Utility", "Installer"},
+    center_only_bundle_ids = {"com.apple.systempreferences", -- macOS ≤ Monterey
+    "com.apple.systemsettings", -- macOS Ventura+
+    "com.apple.archiveutility", "com.apple.installer"},
+    center_only_roles = {"AXDialog", "AXSystemDialog", "AXSheet"}, -- copy/move/extract sheets & dialogs
+    center_only_title_patterns = {"Copy", "Moving", "Extract", "Compress", "Deleting", "Transfer", "Copying"}
 }
 
 -- ========================
@@ -40,7 +48,7 @@ local function isExcluded(win, config)
     if not app then
         return false
     end
-    local name = app:name()
+    local name = app:name() or ""
     for _, excluded in ipairs(config.exclude_apps or {}) do
         if name == excluded then
             return true
@@ -49,25 +57,126 @@ local function isExcluded(win, config)
     return false
 end
 
-local function centerWindow(win)
-    local screenFrame = win:screen():frame()
-    local frame = win:frame()
-    frame.x = screenFrame.x + (screenFrame.w - frame.w) / 2
-    frame.y = screenFrame.y -- keep it top aligned
-    win:setFrame(frame)
+local function anyEquals(val, list)
+    for _, v in ipairs(list or {}) do
+        if val == v then
+            return true
+        end
+    end
+    return false
+end
+
+local function titleMatches(win, patterns)
+    local t = (win and win:title()) or ""
+    for _, pat in ipairs(patterns or {}) do
+        if t:find(pat) then
+            return true
+        end
+    end
+    return false
+end
+
+local function shouldCenterOnly(win, config)
+    if not win then
+        return true
+    end
+
+    -- Non-standard windows (sheets, panels, etc.) → center-only
+    if not win:isStandard() then
+        return true
+    end
+
+    -- Role/subrole rules (dialogs/sheets)
+    local role = win:role() or ""
+    local subrole = win:subrole() or ""
+    if anyEquals(role, config.center_only_roles or {}) or anyEquals(subrole, config.center_only_roles or {}) then
+        return true
+    end
+
+    -- App rules (name or bundle ID)
+    local app = win:application()
+    local appName = app and app:name() or ""
+    if anyEquals(appName, config.center_only_apps or {}) then
+        return true
+    end
+    local bundleID = app and app:bundleID() or ""
+    if anyEquals(bundleID, config.center_only_bundle_ids or {}) then
+        return true
+    end
+
+    -- Title patterns (copy/move/extract progress, etc.)
+    if titleMatches(win, config.center_only_title_patterns or {}) then
+        return true
+    end
+
+    -- If not resizable, don't try to maximize
+    if win.isResizable and not win:isResizable() then
+        return true
+    end
+
+    return false
+end
+
+local function centerWindow(win, opts)
+    if not win then
+        return
+    end
+    local scrFrame = win:screen():frame()
+    local f = win:frame()
+    f.x = scrFrame.x + (scrFrame.w - f.w) / 2
+    if opts and opts.vertical then
+        f.y = scrFrame.y + (scrFrame.h - f.h) / 2
+    else
+        f.y = scrFrame.y -- keep top-aligned unless vertical centering requested
+    end
+    win:setFrame(f)
+end
+
+local function nearlyEqual(a, b, eps)
+    eps = eps or 2
+    return math.abs(a - b) <= eps
+end
+
+local function framesRoughlyEqual(a, b)
+    return nearlyEqual(a.x, b.x) and nearlyEqual(a.y, b.y) and nearlyEqual(a.w, b.w) and nearlyEqual(a.h, b.h)
 end
 
 local function fillWindow(win, config)
-    if not win or not win:isStandard() or isExcluded(win, config) then
+    if not win or isExcluded(win, config) then
         return
     end
-    if config.native_fullscreen then
+
+    -- If native fullscreen requested, only apply to standard windows not in center-only set
+    if config.native_fullscreen and win:isStandard() and not shouldCenterOnly(win, config) then
         if not win:isFullScreen() then
             win:setFullScreen(true)
         end
+        return
+    end
+
+    -- Center-only branch: DO NOT maximize; just center both axes
+    if shouldCenterOnly(win, config) then
+        centerWindow(win, {
+            vertical = true
+        })
+        return
+    end
+
+    -- Maximize for standard, allowed windows — then recenter horizontally
+    local before = win:frame()
+    win:maximize()
+    local after = win:frame()
+
+    -- If maximizing didn't change frame, revert and fully center
+    if framesRoughlyEqual(before, after) then
+        win:setFrame(before)
+        centerWindow(win, {
+            vertical = true
+        })
     else
-        win:maximize()
-        centerWindow(win) -- re-center horizontally after maximize
+        centerWindow(win, {
+            vertical = false
+        })
     end
 end
 
@@ -142,7 +251,7 @@ end
 
 local function safelyFill(win, config)
     hs.timer.doAfter(0.2, function()
-        if not win or not win:isStandard() then
+        if not win then
             return
         end
         if M._screensChanging then
@@ -225,7 +334,7 @@ function M.start(opts)
     end)
 
     wf:subscribe(hs.window.filter.windowMoved, function(win)
-        if not win or not win:isStandard() then
+        if not win then
             return
         end
         local prevUUID = lastScreenUUID(win)
