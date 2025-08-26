@@ -6,7 +6,7 @@ local M = {}
 -- ======================================
 M.config = {
     -- Behavior
-    native_fullscreen = false, -- when maximizing a window, use native macOS fullscreen instead of "maximize to screen"
+    native_fullscreen = false, -- when maximizing a window, use native macOS fullscreen
     internal_hint = "Built%-in", -- regex hint to detect internal screen name (fallback: primary)
 
     -- App filters
@@ -84,6 +84,21 @@ local function shouldMaximize(win, config)
     return false
 end
 
+-- Only act on windows that actually have standard controls (close/min/zoom)
+-- This filters out Dock popovers, sheets without zoom, HUDs, etc.
+local function isActionable(win)
+    if not win then
+        return false
+    end
+    if not (win.isStandard and win:isStandard()) then
+        return false
+    end
+    if (win.isResizable and not win:isResizable()) then
+        return false
+    end
+    return true
+end
+
 local function centerWindow(win)
     if not win then
         return
@@ -109,9 +124,13 @@ local function fillWindow(win, config)
     if not win or isExcluded(win, config) then
         return
     end
+    -- Only act if the window has standard controls (implies green zoom button exists)
+    if not isActionable(win) then
+        return
+    end
 
     -- Default: center everything
-    local doMax = shouldMaximize(win, config) and (win.isResizable and win:isResizable() or true)
+    local doMax = shouldMaximize(win, config)
 
     if doMax then
         if config.native_fullscreen and win:isStandard() then
