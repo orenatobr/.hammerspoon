@@ -1,25 +1,27 @@
 -- ~/.hammerspoon/modules/auto_fullscreen.lua
 local M = {}
 
+-- ======================================
+-- Config (defaults)
+-- ======================================
 M.config = {
-    native_fullscreen = false, -- false = maximize (Spectacle style), true = macOS native fullscreen (Spaces)
-    internal_hint = "Built%-in", -- hint to detect internal screen name
-    exclude_apps = {"Terminal", "iTerm2"}, -- apps to ignore (never touch)
-    screens_settle_seconds = 2.0, -- pause after screens change
-    quarantine_seconds = 12.0, -- skip windows auto-fullscreen if moved by a screens change
+    -- Behavior
+    native_fullscreen = false, -- when maximizing a window, use native macOS fullscreen
+    internal_hint = "Built%-in", -- regex hint to detect internal screen name (fallback: primary)
 
-    -- NEW: center-only rules (do not maximize; just center H+V)
-    center_only_apps = {"System Settings", "System Preferences", "Archive Utility", "Installer"},
-    center_only_bundle_ids = {"com.apple.systempreferences", -- macOS ≤ Monterey
-    "com.apple.systemsettings", -- macOS Ventura+
-    "com.apple.archiveutility", "com.apple.installer"},
-    center_only_roles = {"AXDialog", "AXSystemDialog", "AXSheet"}, -- copy/move/extract sheets & dialogs
-    center_only_title_patterns = {"Copy", "Moving", "Extract", "Compress", "Deleting", "Transfer", "Copying"}
+    -- App filters
+    exclude_apps = {"Terminal", "iTerm2"}, -- never touch these
+    maximize_only_apps = {}, -- *only* these apps get maximize/fullscreen; everything else centers by default
+    maximize_only_bundle_ids = {}, -- same rule but by bundle id
+
+    -- Stability / UX
+    screens_settle_seconds = 2.0, -- pause after screens change
+    quarantine_seconds = 12.0 -- skip auto actions on wins moved by a screens change
 }
 
--- ========================
+-- ======================================
 -- Helpers
--- ========================
+-- ======================================
 local function internalScreen(config)
     return hs.screen.find(config.internal_hint) or hs.screen.primaryScreen()
 end
@@ -28,7 +30,7 @@ local function screenUUID(scr)
     if not scr then
         return nil
     end
-    -- Use dot to *check* method existence, colon to *call* it
+    -- Dot to check, colon to call
     return (scr.getUUID and scr:getUUID()) or (scr:name() .. ":" .. tostring(scr:id()))
 end
 
@@ -66,69 +68,46 @@ local function anyEquals(val, list)
     return false
 end
 
-local function titleMatches(win, patterns)
-    local t = (win and win:title()) or ""
-    for _, pat in ipairs(patterns or {}) do
-        if t:find(pat) then
-            return true
-        end
-    end
-    return false
-end
-
-local function shouldCenterOnly(win, config)
+local function shouldMaximize(win, config)
     if not win then
-        return true
+        return false
     end
-
-    -- Non-standard windows (sheets, panels, etc.) → center-only
-    if not win:isStandard() then
-        return true
-    end
-
-    -- Role/subrole rules (dialogs/sheets)
-    local role = win:role() or ""
-    local subrole = win:subrole() or ""
-    if anyEquals(role, config.center_only_roles or {}) or anyEquals(subrole, config.center_only_roles or {}) then
-        return true
-    end
-
-    -- App rules (name or bundle ID)
     local app = win:application()
     local appName = app and app:name() or ""
-    if anyEquals(appName, config.center_only_apps or {}) then
+    if anyEquals(appName, config.maximize_only_apps or {}) then
         return true
     end
     local bundleID = app and app:bundleID() or ""
-    if anyEquals(bundleID, config.center_only_bundle_ids or {}) then
+    if anyEquals(bundleID, config.maximize_only_bundle_ids or {}) then
         return true
     end
-
-    -- Title patterns (copy/move/extract progress, etc.)
-    if titleMatches(win, config.center_only_title_patterns or {}) then
-        return true
-    end
-
-    -- If not resizable, don't try to maximize
-    if win.isResizable and not win:isResizable() then
-        return true
-    end
-
     return false
 end
 
-local function centerWindow(win, opts)
+-- Only act on windows that actually have standard controls (close/min/zoom)
+-- This filters out Dock popovers, sheets without zoom, HUDs, etc.
+local function isActionable(win)
+    if not win then
+        return false
+    end
+    if not (win.isStandard and win:isStandard()) then
+        return false
+    end
+    if (win.isResizable and not win:isResizable()) then
+        return false
+    end
+    return true
+end
+
+local function centerWindow(win)
     if not win then
         return
     end
     local scrFrame = win:screen():frame()
     local f = win:frame()
+    -- center both axes by default
     f.x = scrFrame.x + (scrFrame.w - f.w) / 2
-    if opts and opts.vertical then
-        f.y = scrFrame.y + (scrFrame.h - f.h) / 2
-    else
-        f.y = scrFrame.y -- keep top-aligned unless vertical centering requested
-    end
+    f.y = scrFrame.y + (scrFrame.h - f.h) / 2
     win:setFrame(f)
 end
 
@@ -145,44 +124,43 @@ local function fillWindow(win, config)
     if not win or isExcluded(win, config) then
         return
     end
+    -- Only act if the window has standard controls (implies green zoom button exists)
+    if not isActionable(win) then
+        return
+    end
 
-    -- If native fullscreen requested, only apply to standard windows not in center-only set
-    if config.native_fullscreen and win:isStandard() and not shouldCenterOnly(win, config) then
-        if not win:isFullScreen() then
-            win:setFullScreen(true)
+    -- Default: center everything
+    local doMax = shouldMaximize(win, config)
+
+    if doMax then
+        if config.native_fullscreen and win:isStandard() then
+            if not win:isFullScreen() then
+                win:setFullScreen(true)
+            end
+            return
         end
-        return
-    end
-
-    -- Center-only branch: DO NOT maximize; just center both axes
-    if shouldCenterOnly(win, config) then
-        centerWindow(win, {
-            vertical = true
-        })
-        return
-    end
-
-    -- Maximize for standard, allowed windows — then recenter horizontally
-    local before = win:frame()
-    win:maximize()
-    local after = win:frame()
-
-    -- If maximizing didn't change frame, revert and fully center
-    if framesRoughlyEqual(before, after) then
-        win:setFrame(before)
-        centerWindow(win, {
-            vertical = true
-        })
+        local before = win:frame()
+        win:maximize()
+        local after = win:frame()
+        -- If maximize was a no-op (non-resizable, tiled, etc.), just center
+        if framesRoughlyEqual(before, after) then
+            win:setFrame(before)
+            centerWindow(win)
+        else
+            -- After maximizing, re-center horizontally a hair in case of menu bar/tiles
+            local f = win:frame()
+            local s = win:screen():frame()
+            f.x = s.x + (s.w - f.w) / 2
+            win:setFrame(f)
+        end
     else
-        centerWindow(win, {
-            vertical = false
-        })
+        centerWindow(win)
     end
 end
 
--- ========================
+-- ======================================
 -- State
--- ========================
+-- ======================================
 M._wf = nil
 M._running = false
 
@@ -214,7 +192,7 @@ local function inQuarantine(win)
 end
 
 local function markQuarantine(win, seconds)
-    local id = win and win:id()
+    local id = win and win:id();
     if not id then
         return
     end
@@ -222,11 +200,11 @@ local function markQuarantine(win, seconds)
 end
 
 local function rememberScreen(win)
-    local id = win and win:id()
+    local id = win and win:id();
     if not id then
         return
     end
-    local scr = win:screen()
+    local scr = win:screen();
     if not scr then
         return
     end
@@ -234,7 +212,7 @@ local function rememberScreen(win)
 end
 
 local function lastScreenUUID(win)
-    local id = win and win:id()
+    local id = win and win:id();
     if not id then
         return nil
     end
@@ -266,9 +244,9 @@ local function safelyFill(win, config)
     end)
 end
 
--- ========================
+-- ======================================
 -- Watchers
--- ========================
+-- ======================================
 local function handleScreensChanged()
     M._screensChanging = true
     M._lastScreenChangeAt = now()
@@ -303,9 +281,9 @@ local function subscribeWatchers()
     end
 end
 
--- ========================
+-- ======================================
 -- API
--- ========================
+-- ======================================
 function M.start(opts)
     if M._running then
         print("[auto_fullscreen] already running")
