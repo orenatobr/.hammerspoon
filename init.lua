@@ -27,8 +27,8 @@ autoFullscreen.start({
     native_fullscreen = false,
     internal_hint = "Built%-in",
     exclude_apps = {"Terminal", "iTerm2"},
-    center_only_apps = {"System Settings", "Archive Utility", "Ajustes do Sistema", "The Unarchiver"},
-    center_only_bundle_ids = {"com.apple.systemsettings", "com.apple.archiveutility"}
+    maximize_only_apps = {"Finder", "Visual Studio Code", "Safari"}
+    -- opcional: maximize_only_bundle_ids = {"com.microsoft.VSCode", "com.apple.Safari"}
 })
 
 -- Bind hotkeys
