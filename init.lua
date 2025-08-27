@@ -27,7 +27,7 @@ autoFullscreen.start({
     native_fullscreen = false,
     internal_hint = "Built%-in",
     exclude_apps = {"Terminal", "iTerm2"},
-    maximize_only_apps = {"Code", "Safari", "FileZilla", "Microsoft Teams"},
+    maximize_only_apps = {"Code", "Safari", "FileZilla", "Microsoft Teams", "zoom.us"},
     -- maximize_only_bundle_ids = {"com.microsoft.VSCode", "com.apple.Safari"},
     screens_settle_seconds = 2.0,
     quarantine_seconds = 12.0
