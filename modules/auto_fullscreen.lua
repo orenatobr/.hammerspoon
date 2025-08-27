@@ -103,7 +103,11 @@ local function centerWindow(win)
     if not win then
         return
     end
-    local scrFrame = win:screen():frame()
+    local scr = win:screen()
+    if not scr then
+        return
+    end
+    local scrFrame = scr:frame()
     local f = win:frame()
     -- center both axes by default
     f.x = scrFrame.x + (scrFrame.w - f.w) / 2
@@ -124,12 +128,10 @@ local function fillWindow(win, config)
     if not win or isExcluded(win, config) then
         return
     end
-    -- Only act if the window has standard controls (implies green zoom button exists)
     if not isActionable(win) then
         return
     end
 
-    -- Default: center everything
     local doMax = shouldMaximize(win, config)
 
     if doMax then
@@ -192,7 +194,7 @@ local function inQuarantine(win)
 end
 
 local function markQuarantine(win, seconds)
-    local id = win and win:id();
+    local id = win and win:id()
     if not id then
         return
     end
@@ -200,11 +202,11 @@ local function markQuarantine(win, seconds)
 end
 
 local function rememberScreen(win)
-    local id = win and win:id();
+    local id = win and win:id()
     if not id then
         return
     end
-    local scr = win:screen();
+    local scr = win:screen()
     if not scr then
         return
     end
@@ -212,7 +214,7 @@ local function rememberScreen(win)
 end
 
 local function lastScreenUUID(win)
-    local id = win and win:id();
+    local id = win and win:id()
     if not id then
         return nil
     end
@@ -244,6 +246,20 @@ local function safelyFill(win, config)
     end)
 end
 
+-- NEW: one-shot sweep to fix windows that landed on the internal screen during changes
+local function sweepInternalWindows()
+    if M._screensChanging then
+        return
+    end
+    -- only visible windows to avoid messing with other Spaces
+    for _, win in ipairs(hs.window.visibleWindows()) do
+        if win and not inQuarantine(win) and isOnInternalScreen(win, M.config) and not isExcluded(win, M.config) and
+            isActionable(win) then
+            fillWindow(win, M.config)
+        end
+    end
+end
+
 -- ======================================
 -- Watchers
 -- ======================================
@@ -255,12 +271,18 @@ local function handleScreensChanged()
     end
     M._screensChangeTimer = hs.timer.doAfter(M.config.screens_settle_seconds, function()
         M._screensChanging = false
+        -- cleanup stale quarantines
         for id, exp in pairs(M._quarantine) do
             if now() > exp + 30 then
                 M._quarantine[id] = nil
             end
         end
         print("[auto_fullscreen] screens settled")
+
+        -- After settling, wait for quarantine to end and then sweep once
+        hs.timer.doAfter(M.config.quarantine_seconds + 0.2, function()
+            sweepInternalWindows()
+        end)
     end)
     print("[auto_fullscreen] screens changing...")
 end
