@@ -1,347 +1,414 @@
--- ~/.hammerspoon/modules/lid_bluetooth.lua
+-- ~/.hammerspoon/modules/auto_fullscreen.lua
 local M = {}
 
--- ===== Config =====
-M._maxRetries = 6 -- maximum number of retries
-M._baseDelay = 0.9 -- base backoff delay (s)
-local CLOSE_DELAY = 0.4 -- after detecting lid close
-local OPEN_DELAY = 1.2 -- after detecting lid open (allow wake time)
-local POLL_INTERVAL = 2.0 -- lid polling interval
+-- ======================================
+-- Config (defaults)
+-- ======================================
+M.config = {
+    -- Behavior
+    native_fullscreen = false, -- when maximizing a window, use native macOS fullscreen
+    internal_hint = "Built%-in", -- regex hint to detect internal screen name (fallback: primary)
 
--- ===== Internals =====
-M._wantBTOn = false -- desired Bluetooth state
-M._unlocked = true -- session is usable (updated by caffeinate watcher)
-M._inflight = false -- toggle attempt in progress
-M._retryCount = 0
-M._cafWatcher = nil
-local timer = nil
-local lastBuiltInPresent = nil
+    -- App filters
+    exclude_apps = {"Terminal", "iTerm2"}, -- never touch these
+    maximize_only_apps = {}, -- *only* these apps get maximize/fullscreen; everything else centers by default
+    maximize_only_bundle_ids = {}, -- same rule but by bundle id
 
--- ===== Utils =====
-local function urlEncode(s)
-    return (s:gsub("([^%w%-_%.~ ])", function(c)
-        return string.format("%%%02X", string.byte(c))
-    end):gsub(" ", "%%20"))
+    -- Stability / UX
+    screens_settle_seconds = 2.0, -- pause after screens change
+    quarantine_seconds = 12.0 -- skip auto actions on wins moved by a screens change
+}
+
+-- ======================================
+-- Helpers
+-- ======================================
+local function internalScreen(config)
+    return hs.screen.find(config.internal_hint) or hs.screen.primaryScreen()
 end
+
+local function screenUUID(scr)
+    if not scr then
+        return nil
+    end
+    -- Dot to check, colon to call
+    return (scr.getUUID and scr:getUUID()) or (scr:name() .. ":" .. tostring(scr:id()))
+end
+
+local function isOnInternalScreen(win, config)
+    if not win then
+        return false
+    end
+    local scr = win:screen()
+    if not scr then
+        return false
+    end
+    return screenUUID(scr) == screenUUID(internalScreen(config))
+end
+
+local function isExcluded(win, config)
+    local app = win and win:application()
+    if not app then
+        return false
+    end
+    local name = app:name() or ""
+    for _, excluded in ipairs(config.exclude_apps or {}) do
+        if name == excluded then
+            return true
+        end
+    end
+    return false
+end
+
+local function anyEquals(val, list)
+    for _, v in ipairs(list or {}) do
+        if val == v then
+            return true
+        end
+    end
+    return false
+end
+
+local function shouldMaximize(win, config)
+    if not win then
+        return false
+    end
+    local app = win:application()
+    local appName = app and app:name() or ""
+    if anyEquals(appName, config.maximize_only_apps or {}) then
+        return true
+    end
+    local bundleID = app and app:bundleID() or ""
+    if anyEquals(bundleID, config.maximize_only_bundle_ids or {}) then
+        return true
+    end
+    return false
+end
+
+-- Only act on windows that actually have standard controls (close/min/zoom)
+-- This filters out Dock popovers, sheets without zoom, HUDs, etc.
+local function isActionable(win)
+    if not win then
+        return false
+    end
+    if not (win.isStandard and win:isStandard()) then
+        return false
+    end
+    if (win.isResizable and not win:isResizable()) then
+        return false
+    end
+    return true
+end
+
+local function centerWindow(win)
+    if not win then
+        return
+    end
+    local scr = win:screen()
+    if not scr then
+        return
+    end
+    local scrFrame = scr:frame()
+    local f = win:frame()
+    -- center both axes by default
+    f.x = scrFrame.x + (scrFrame.w - f.w) / 2
+    f.y = scrFrame.y + (scrFrame.h - f.h) / 2
+    win:setFrame(f)
+end
+
+local function nearlyEqual(a, b, eps)
+    eps = eps or 2
+    return math.abs(a - b) <= eps
+end
+
+local function framesRoughlyEqual(a, b)
+    return nearlyEqual(a.x, b.x) and nearlyEqual(a.y, b.y) and nearlyEqual(a.w, b.w) and nearlyEqual(a.h, b.h)
+end
+
+local function fillWindow(win, config)
+    if not win or isExcluded(win, config) then
+        return
+    end
+    if not isActionable(win) then
+        return
+    end
+
+    local doMax = shouldMaximize(win, config)
+
+    if doMax then
+        if config.native_fullscreen and win:isStandard() then
+            if not win:isFullScreen() then
+                win:setFullScreen(true)
+            end
+            return
+        end
+        local before = win:frame()
+        win:maximize()
+        local after = win:frame()
+        -- If maximize was a no-op (non-resizable, tiled, etc.), just center
+        if framesRoughlyEqual(before, after) then
+            win:setFrame(before)
+            centerWindow(win)
+        else
+            -- After maximizing, re-center horizontally a hair in case of menu bar/tiles
+            local f = win:frame()
+            local s = win:screen():frame()
+            f.x = s.x + (s.w - f.w) / 2
+            win:setFrame(f)
+        end
+    else
+        centerWindow(win)
+    end
+end
+
+-- ======================================
+-- State
+-- ======================================
+M._wf = nil
+M._running = false
+
+M._screensChanging = false
+M._screensChangeTimer = nil
+M._lastScreenChangeAt = 0
+
+M._winLastScreen = {} -- [win:id()] = screenUUID
+M._quarantine = {} -- [win:id()] = epochSecondsExpiry
 
 local function now()
     return hs.timer.secondsSinceEpoch()
 end
 
-local function backoffDelay(n)
-    local d = M._baseDelay * (2 ^ math.max(0, n - 1))
-    if d > 7.0 then
-        d = 7.0
+local function inQuarantine(win)
+    local id = win and win:id()
+    if not id then
+        return false
     end
-    return d
-end
-
--- Locate blueutil (Homebrew on Intel/ARM)
-local function blueutilPath()
-    local candidates = {"/opt/homebrew/bin/blueutil", "/usr/local/bin/blueutil"}
-    for _, p in ipairs(candidates) do
-        if hs.fs.attributes(p) then
-            return p
-        end
+    local exp = M._quarantine[id]
+    if not exp then
+        return false
     end
-    return nil
-end
-
-local BLUEUTIL = blueutilPath()
-
--- ===== Bluetooth helpers =====
-local function btReadState()
-    -- returns true/false or nil if unknown
-    if BLUEUTIL then
-        local out = hs.execute(string.format("%q --power", BLUEUTIL), true)
-        if out then
-            out = out:gsub("%s+", "")
-            if out == "1" then
-                return true
-            elseif out == "0" then
-                return false
-            end
-        end
-    end
-    return nil
-end
-
-local function btSetViaBlueutil(targetOn)
-    if not BLUEUTIL then
-        return false, "no-blueutil"
-    end
-    local cmd = string.format("%q --power %d", BLUEUTIL, targetOn and 1 or 0)
-    local out, ok, _, rc = hs.execute(cmd, true)
-    if ok and rc == 0 then
+    if now() < exp then
         return true
     end
-    return false, out or ("rc=" .. tostring(rc))
-end
-
--- Run via Shortcuts Events (background, no UI)
-local function runShortcutOSA(name)
-    local ok, _, err = hs.osascript.applescript(string.format([[
-    tell application "Shortcuts Events"
-      run shortcut "%s"
-    end tell
-  ]], name))
-    return ok, err
-end
-
--- Run via CLI (background, no UI)
-local function runShortcutCLI(name)
-    local cmd = string.format('/usr/bin/shortcuts run %q --show-errors 2>&1', name)
-    local out, ok, _, rc = hs.execute(cmd, true)
-    return ok and rc == 0, out or "", rc
-end
-
--- Run via URL scheme (may open UI; hide app and restore focus)
-local function runShortcutURL(name, restoreApp)
-    local ok = hs.urlevent.openURL("shortcuts://run-shortcut?name=" .. urlEncode(name))
-    if ok then
-        hs.timer.doAfter(0.25, function()
-            local sh = hs.application.get("Shortcuts")
-            if sh then
-                sh:hide()
-            end
-            if restoreApp then
-                restoreApp:activate(true)
-            end
-        end)
-    end
-    return ok
-end
-
--- Try applying the state and confirm (prefer blueutil)
-local function trySetBluetooth(targetOn)
-    local target = targetOn and "Bluetooth On" or "Bluetooth Off"
-    local prevApp = hs.application.frontmostApplication()
-
-    -- 0) Use blueutil first if available
-    if BLUEUTIL then
-        local okB, errB = btSetViaBlueutil(targetOn)
-        if not okB then
-            print(string.format("⚠️ blueutil failed (%s). Falling back to Shortcuts…", tostring(errB)))
-        else
-            -- confirm actual state
-            local deadline = now() + 5.0
-            while now() < deadline do
-                local st = btReadState()
-                if st ~= nil and st == targetOn then
-                    return true
-                end
-                hs.timer.usleep(200000) -- 200ms
-            end
-            print("⚠️ blueutil applied but state not confirmed; will try Shortcuts fallback.")
-        end
-    end
-
-    -- 1) Shortcuts Events
-    local okOSA, errOSA = runShortcutOSA(target)
-    if okOSA then
-        local st = btReadState()
-        if st == nil then
-            return true
-        end
-        local deadline = now() + 6.0
-        while now() < deadline do
-            st = btReadState()
-            if st ~= nil and st == targetOn then
-                return true
-            end
-            hs.timer.usleep(200000)
-        end
-    end
-
-    -- 2) CLI
-    local okCLI, outCLI = runShortcutCLI(target)
-    if okCLI then
-        local st = btReadState()
-        if st == nil then
-            return true
-        end
-        local deadline = now() + 6.0
-        while now() < deadline do
-            st = btReadState()
-            if st ~= nil and st == targetOn then
-                return true
-            end
-            hs.timer.usleep(200000)
-        end
-    end
-
-    -- 3) URL (only if unlocked, to avoid showing UI at login screen)
-    if M._unlocked then
-        local okURL = runShortcutURL(target, prevApp)
-        if okURL then
-            local st = btReadState()
-            if st == nil then
-                return true
-            end
-            local deadline = now() + 6.0
-            while now() < deadline do
-                st = btReadState()
-                if st ~= nil and st == targetOn then
-                    return true
-                end
-                hs.timer.usleep(200000)
-            end
-        end
-    end
-
-    print(string.format("❌ Failed to set '%s' (all methods). unlocked=%s", target, tostring(M._unlocked)))
+    M._quarantine[id] = nil
     return false
 end
 
--- Retry wrapper
-local function scheduleRetry()
-    if M._retryCount >= M._maxRetries then
-        print("⚠️ Reached max retries for Bluetooth toggle; giving up.")
-        M._inflight = false
+local function markQuarantine(win, seconds)
+    local id = win and win:id()
+    if not id then
         return
     end
-    M._retryCount = M._retryCount + 1
-    local delay = backoffDelay(M._retryCount)
-    hs.timer.doAfter(delay, function()
-        local desired = M._wantBTOn
-        if desired and not M._unlocked then
-            -- still locked; retry later without counting
-            M._retryCount = M._retryCount - 1
-            scheduleRetry()
+    M._quarantine[id] = now() + (seconds or M.config.quarantine_seconds)
+end
+
+local function rememberScreen(win)
+    local id = win and win:id()
+    if not id then
+        return
+    end
+    local scr = win:screen()
+    if not scr then
+        return
+    end
+    M._winLastScreen[id] = screenUUID(scr)
+end
+
+local function lastScreenUUID(win)
+    local id = win and win:id()
+    if not id then
+        return nil
+    end
+    return M._winLastScreen[id]
+end
+
+local function ensureFilter()
+    if M._wf then
+        return M._wf
+    end
+    M._wf = hs.window.filter.new()
+    return M._wf
+end
+
+local function safelyFill(win, config)
+    hs.timer.doAfter(0.2, function()
+        if not win then
             return
         end
-        local ok = trySetBluetooth(desired)
-        if ok then
-            print(string.format("✅ Bluetooth '%s' after %d retries.", desired and "On" or "Off", M._retryCount))
-            M._inflight = false
-            M._retryCount = 0
-        else
-            scheduleRetry()
+        if M._screensChanging then
+            return
+        end
+        if inQuarantine(win) then
+            return
+        end
+        if isOnInternalScreen(win, config) and not isExcluded(win, config) then
+            fillWindow(win, config)
         end
     end)
 end
 
-local function ensureBluetoothState()
-    if M._inflight then
+-- NEW: one-shot sweep to fix windows that landed on the internal screen during changes
+local function sweepInternalWindows()
+    if M._screensChanging then
         return
     end
-    M._inflight = true
-    M._retryCount = 0
-
-    if M._wantBTOn and not M._unlocked then
-        scheduleRetry()
-        return
-    end
-
-    local st = btReadState()
-    if st ~= nil and st == M._wantBTOn then
-        M._inflight = false
-        return
-    end
-
-    local ok = trySetBluetooth(M._wantBTOn)
-    if ok then
-        print(string.format("✅ Bluetooth '%s' (first attempt).", M._wantBTOn and "On" or "Off"))
-        M._inflight = false
-        M._retryCount = 0
-    else
-        scheduleRetry()
-    end
-end
-
--- ===== Lid detection (polling) =====
-local function isBuiltInDisplayPresent()
-    for _, screen in ipairs(hs.screen.allScreens()) do
-        local nm = (screen:name() or ""):lower()
-        if nm:match("built%-in") or nm:find("liquid retina") or nm:find("color lcd") then
-            return true
+    -- only visible windows to avoid messing with other Spaces
+    for _, win in ipairs(hs.window.visibleWindows()) do
+        if win and not inQuarantine(win) and isOnInternalScreen(win, M.config) and not isExcluded(win, M.config) and
+            isActionable(win) then
+            fillWindow(win, M.config)
         end
     end
-    return false
 end
 
-local function onLidClosed()
-    hs.timer.doAfter(CLOSE_DELAY, function()
-        M._wantBTOn = false
-        ensureBluetoothState()
-        hs.caffeinate.lockScreen()
-        print("🔒 Lid closed — Bluetooth OFF + screen locked.")
-    end)
-end
-
-local function onLidOpened()
-    hs.timer.doAfter(OPEN_DELAY, function()
-        M._wantBTOn = true
-        ensureBluetoothState()
-        print("🔓 Lid opened — Bluetooth ON (with verification & retries).")
-    end)
-end
-
-local function checkLidState()
-    local builtInPresent = isBuiltInDisplayPresent()
-
-    if lastBuiltInPresent == nil then
-        lastBuiltInPresent = builtInPresent
-        return
+-- ======================================
+-- Watchers
+-- ======================================
+local function handleScreensChanged()
+    M._screensChanging = true
+    M._lastScreenChangeAt = now()
+    if M._screensChangeTimer then
+        M._screensChangeTimer:stop()
     end
-
-    if lastBuiltInPresent and not builtInPresent then
-        onLidClosed()
-    end
-
-    if (not lastBuiltInPresent) and builtInPresent then
-        onLidOpened()
-    end
-
-    lastBuiltInPresent = builtInPresent
-end
-
--- ===== Caffeinate watcher: sync with unlock/wake =====
-local function handleCaffeinateEvent(event)
-    if event == hs.caffeinate.watcher.screensDidUnlock or event == hs.caffeinate.watcher.sessionDidBecomeActive or event ==
-        hs.caffeinate.watcher.systemDidWake or event == hs.caffeinate.watcher.screensDidWake then
-        M._unlocked = true
-        if M._wantBTOn then
-            hs.timer.doAfter(0.8, ensureBluetoothState)
+    M._screensChangeTimer = hs.timer.doAfter(M.config.screens_settle_seconds, function()
+        M._screensChanging = false
+        -- cleanup stale quarantines
+        for id, exp in pairs(M._quarantine) do
+            if now() > exp + 30 then
+                M._quarantine[id] = nil
+            end
         end
-    elseif event == hs.caffeinate.watcher.screensDidLock or event == hs.caffeinate.watcher.sessionDidResignActive or
-        event == hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.screensDidSleep then
-        M._unlocked = false
-    end
+        print("[auto_fullscreen] screens settled")
+
+        -- After settling, wait for quarantine to end and then sweep once
+        hs.timer.doAfter(M.config.quarantine_seconds + 0.2, function()
+            sweepInternalWindows()
+        end)
+    end)
+    print("[auto_fullscreen] screens changing...")
 end
 
--- ===== Public API =====
-function M.bindHotkey()
-    -- hs.hotkey.bind({"ctrl","alt","cmd"}, "9", function() M._wantBTOn=false; ensureBluetoothState() end)
-    -- hs.hotkey.bind({"ctrl","alt","cmd"}, "0", function() M._wantBTOn=true;  ensureBluetoothState() end)
-end
-
-function M.start()
-    if not timer then
-        M._unlocked = true -- assume unlocked; watcher will adjust
-        lastBuiltInPresent = isBuiltInDisplayPresent()
-        timer = hs.timer.doEvery(POLL_INTERVAL, checkLidState)
-        print(string.format("✅ Lid monitoring started (poll %ss). blueutil=%s", POLL_INTERVAL,
-            tostring(BLUEUTIL ~= nil)))
+local function subscribeWatchers()
+    if not M._screenWatcher then
+        M._screenWatcher = hs.screen.watcher.new(handleScreensChanged)
+        M._screenWatcher:start()
     end
     if not M._cafWatcher then
-        M._cafWatcher = hs.caffeinate.watcher.new(handleCaffeinateEvent)
+        M._cafWatcher = hs.caffeinate.watcher.new(function(event)
+            if event == hs.caffeinate.watcher.screensDidSleep or event == hs.caffeinate.watcher.screensDidWake or event ==
+                hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.systemDidWake then
+                handleScreensChanged()
+            end
+        end)
         M._cafWatcher:start()
-        print("✅ Caffeinate watcher started.")
     end
+end
+
+-- ======================================
+-- API
+-- ======================================
+function M.start(opts)
+    if M._running then
+        print("[auto_fullscreen] already running")
+        return
+    end
+
+    M.config = hs.fnutils.copy(M.config)
+    if type(opts) == "table" then
+        for k, v in pairs(opts) do
+            M.config[k] = v
+        end
+    end
+
+    subscribeWatchers()
+    local wf = ensureFilter()
+
+    wf:subscribe(hs.window.filter.windowCreated, function(win)
+        rememberScreen(win)
+        if M._screensChanging then
+            return
+        end
+        if inQuarantine(win) then
+            return
+        end
+        safelyFill(win, M.config)
+    end)
+
+    wf:subscribe(hs.window.filter.windowMoved, function(win)
+        if not win then
+            return
+        end
+        local prevUUID = lastScreenUUID(win)
+        local currScr = win:screen()
+        local currUUID = screenUUID(currScr)
+        local internalUUID = screenUUID(internalScreen(M.config))
+
+        if M._screensChanging and prevUUID and prevUUID ~= internalUUID and currUUID == internalUUID then
+            markQuarantine(win, M.config.quarantine_seconds)
+            print(string.format(
+                "[auto_fullscreen] quarantined win %s for %.1fs (external→internal during screens change)",
+                tostring(win:id()), M.config.quarantine_seconds))
+        end
+
+        rememberScreen(win)
+
+        if M._screensChanging then
+            return
+        end
+        if inQuarantine(win) then
+            return
+        end
+        if isOnInternalScreen(win, M.config) then
+            fillWindow(win, M.config)
+        end
+    end)
+
+    wf:subscribe(hs.window.filter.windowFocused, function(win)
+        if M._screensChanging then
+            return
+        end
+        if inQuarantine(win) then
+            return
+        end
+        if isOnInternalScreen(win, M.config) then
+            fillWindow(win, M.config)
+        end
+    end)
+
+    wf:subscribe(hs.window.filter.windowUnminimized, function(win)
+        if not win then
+            return
+        end
+        if not isOnInternalScreen(win, M.config) then
+            M._quarantine[win:id()] = nil
+        end
+    end)
+
+    M._running = true
+    print("[auto_fullscreen] started with config:", hs.inspect(M.config))
 end
 
 function M.stop()
-    if timer then
-        timer:stop();
-        timer = nil
+    if not M._running then
+        return
+    end
+    if M._wf then
+        M._wf:unsubscribeAll()
+    end
+    if M._screenWatcher then
+        M._screenWatcher:stop();
+        M._screenWatcher = nil
     end
     if M._cafWatcher then
         M._cafWatcher:stop();
         M._cafWatcher = nil
     end
-    M._inflight = false
-    print("🛑 Lid monitoring stopped.")
+    if M._screensChangeTimer then
+        M._screensChangeTimer:stop();
+        M._screensChangeTimer = nil
+    end
+    M._running = false
+    hs.alert.show("🛑 Auto-fullscreen disabled")
+    print("[auto_fullscreen] stopped")
 end
 
 return M
