@@ -2,18 +2,26 @@
 local M = {}
 
 -- ===== Config =====
-M._maxRetries = 6 -- maximum number of retries
-M._baseDelay = 0.9 -- base backoff delay (s)
+M._maxRetries = 6 -- maximum retries for full apply cycle
+M._baseDelay = 0.9 -- base backoff delay (seconds)
 local CLOSE_DELAY = 0.4 -- after detecting lid close
-local OPEN_DELAY = 1.2 -- after detecting lid open (allow wake time)
+local OPEN_DELAY = 1.2 -- after detecting lid open (allow wake)
 local POLL_INTERVAL = 2.0 -- lid polling interval
+
+-- Confirmation timings (async polling)
+local CONFIRM_TIMEOUT = 6.0 -- seconds to wait for state confirmation
+local CONFIRM_INTERVAL = 0.25 -- seconds between polls
+
+-- Post-wake safety net: extra ensure calls
+local SAFETY_ENSURE_OFFSETS = {0.0, 2.0, 6.0} -- seconds after unlock/lid-open
 
 -- ===== Internals =====
 M._wantBTOn = false -- desired Bluetooth state
-M._unlocked = true -- session is usable (updated by caffeinate watcher)
-M._inflight = false -- toggle attempt in progress
+M._unlocked = true -- session is usable (set by caffeinate watcher)
+M._inflight = false -- an apply/confirm cycle is running
 M._retryCount = 0
 M._cafWatcher = nil
+M._safetyTimers = {}
 local timer = nil
 local lastBuiltInPresent = nil
 
@@ -49,8 +57,8 @@ end
 
 local BLUEUTIL = blueutilPath()
 
--- ===== Bluetooth helpers =====
-local function btReadState()
+-- ===== Bluetooth state (read/confirm) =====
+local function btReadStateSync()
     -- returns true/false or nil if unknown
     if BLUEUTIL then
         local out = hs.execute(string.format("%q --power", BLUEUTIL), true)
@@ -66,37 +74,68 @@ local function btReadState()
     return nil
 end
 
-local function btSetViaBlueutil(targetOn)
+local function confirmDesiredAsync(desired, timeout, interval, onDone)
+    local deadline = now() + (timeout or CONFIRM_TIMEOUT)
+    local t
+    t = hs.timer.doEvery(interval or CONFIRM_INTERVAL, function()
+        local st = btReadStateSync()
+        if st ~= nil and st == desired then
+            t:stop()
+            onDone(true)
+            return
+        end
+        if now() >= deadline then
+            t:stop()
+            onDone(false)
+        end
+    end)
+end
+
+-- ===== Runners (async where possible) =====
+local function runBlueutilSetAsync(targetOn, cb)
     if not BLUEUTIL then
-        return false, "no-blueutil"
+        cb(false, "no-blueutil")
+        return
     end
-    local cmd = string.format("%q --power %d", BLUEUTIL, targetOn and 1 or 0)
-    local out, ok, _, rc = hs.execute(cmd, true)
-    if ok and rc == 0 then
-        return true
+    local task = hs.task.new(BLUEUTIL, function(exitCode, stdOut, stdErr)
+        cb(exitCode == 0, stdOut, stdErr)
+    end, {"--power", targetOn and "1" or "0"})
+    if not task then
+        cb(false, "task-new-failed")
+        return
     end
-    return false, out or ("rc=" .. tostring(rc))
+    task:start()
 end
 
--- Run via Shortcuts Events (background, no UI)
-local function runShortcutOSA(name)
-    local ok, _, err = hs.osascript.applescript(string.format([[
-    tell application "Shortcuts Events"
-      run shortcut "%s"
-    end tell
-  ]], name))
-    return ok, err
+local function runShortcutOSA(name, cb)
+    -- OSA is synchronous; run in a tiny doAfter to avoid deep recursion
+    hs.timer.doAfter(0, function()
+        local ok, _, err = hs.osascript.applescript(string.format([[
+            tell application "Shortcuts Events"
+              run shortcut "%s"
+            end tell
+        ]], name))
+        cb(ok, err)
+    end)
 end
 
--- Run via CLI (background, no UI)
-local function runShortcutCLI(name)
-    local cmd = string.format('/usr/bin/shortcuts run %q --show-errors 2>&1', name)
-    local out, ok, _, rc = hs.execute(cmd, true)
-    return ok and rc == 0, out or "", rc
+local function runShortcutCLI(name, cb)
+    local bin = "/usr/bin/shortcuts"
+    if not hs.fs.attributes(bin) then
+        cb(false, "shortcuts-cli-missing")
+        return
+    end
+    local task = hs.task.new(bin, function(exitCode, stdOut, stdErr)
+        cb(exitCode == 0, stdOut or "", stdErr or "")
+    end, {"run", name, "--show-errors"})
+    if not task then
+        cb(false, "task-new-failed")
+        return
+    end
+    task:start()
 end
 
--- Run via URL scheme (may open UI; hide app and restore focus)
-local function runShortcutURL(name, restoreApp)
+local function runShortcutURL(name, restoreApp, cb)
     local ok = hs.urlevent.openURL("shortcuts://run-shortcut?name=" .. urlEncode(name))
     if ok then
         hs.timer.doAfter(0.25, function()
@@ -109,91 +148,146 @@ local function runShortcutURL(name, restoreApp)
             end
         end)
     end
-    return ok
+    cb(ok)
 end
 
--- Try applying the state and confirm (prefer blueutil)
-local function trySetBluetooth(targetOn)
-    local target = targetOn and "Bluetooth On" or "Bluetooth Off"
-    local prevApp = hs.application.frontmostApplication()
+-- Try methods in order with confirmation at each step
+local function applyWithMethod(desired, methodIdx, cb)
+    local targetName = desired and "Bluetooth On" or "Bluetooth Off"
+    local methods = {}
 
-    -- 0) Use blueutil first if available
+    -- 1) blueutil (if available)
     if BLUEUTIL then
-        local okB, errB = btSetViaBlueutil(targetOn)
-        if not okB then
-            print(string.format("⚠️ blueutil failed (%s). Falling back to Shortcuts…", tostring(errB)))
-        else
-            -- confirm actual state
-            local deadline = now() + 5.0
-            while now() < deadline do
-                local st = btReadState()
-                if st ~= nil and st == targetOn then
-                    return true
+        table.insert(methods, function(nextStep)
+            runBlueutilSetAsync(desired, function(ok)
+                if not ok then
+                    print("⚠️ blueutil failed; trying next method…")
+                    nextStep(false)
+                    return
                 end
-                hs.timer.usleep(200000) -- 200ms
-            end
-            print("⚠️ blueutil applied but state not confirmed; will try Shortcuts fallback.")
-        end
+                confirmDesiredAsync(desired, 5.0, 0.2, function(confirmed)
+                    if confirmed then
+                        cb(true)
+                    else
+                        nextStep(false)
+                    end
+                end)
+            end)
+        end)
     end
 
-    -- 1) Shortcuts Events
-    local okOSA, errOSA = runShortcutOSA(target)
-    if okOSA then
-        local st = btReadState()
-        if st == nil then
-            return true
-        end
-        local deadline = now() + 6.0
-        while now() < deadline do
-            st = btReadState()
-            if st ~= nil and st == targetOn then
-                return true
+    -- 2) Shortcuts Events (OSA)
+    table.insert(methods, function(nextStep)
+        runShortcutOSA(targetName, function(ok)
+            if not ok then
+                return nextStep(false)
             end
-            hs.timer.usleep(200000)
-        end
-    end
-
-    -- 2) CLI
-    local okCLI, outCLI = runShortcutCLI(target)
-    if okCLI then
-        local st = btReadState()
-        if st == nil then
-            return true
-        end
-        local deadline = now() + 6.0
-        while now() < deadline do
-            st = btReadState()
-            if st ~= nil and st == targetOn then
-                return true
-            end
-            hs.timer.usleep(200000)
-        end
-    end
-
-    -- 3) URL (only if unlocked, to avoid showing UI at login screen)
-    if M._unlocked then
-        local okURL = runShortcutURL(target, prevApp)
-        if okURL then
-            local st = btReadState()
+            -- If we can't read state (no blueutil), assume success
+            local st = btReadStateSync()
             if st == nil then
-                return true
+                return cb(true)
             end
-            local deadline = now() + 6.0
-            while now() < deadline do
-                st = btReadState()
-                if st ~= nil and st == targetOn then
-                    return true
+            confirmDesiredAsync(desired, CONFIRM_TIMEOUT, CONFIRM_INTERVAL, function(confirmed)
+                if confirmed then
+                    cb(true)
+                else
+                    nextStep(false)
                 end
-                hs.timer.usleep(200000)
-            end
-        end
-    end
+            end)
+        end)
+    end)
 
-    print(string.format("❌ Failed to set '%s' (all methods). unlocked=%s", target, tostring(M._unlocked)))
-    return false
+    -- 3) Shortcuts CLI
+    table.insert(methods, function(nextStep)
+        runShortcutCLI(targetName, function(ok)
+            if not ok then
+                return nextStep(false)
+            end
+            local st = btReadStateSync()
+            if st == nil then
+                return cb(true)
+            end
+            confirmDesiredAsync(desired, CONFIRM_TIMEOUT, CONFIRM_INTERVAL, function(confirmed)
+                if confirmed then
+                    cb(true)
+                else
+                    nextStep(false)
+                end
+            end)
+        end)
+    end)
+
+    -- 4) URL (only if unlocked)
+    table.insert(methods, function(nextStep)
+        if not M._unlocked then
+            return nextStep(false)
+        end
+        local prevApp = hs.application.frontmostApplication()
+        runShortcutURL(targetName, prevApp, function(ok)
+            if not ok then
+                return nextStep(false)
+            end
+            local st = btReadStateSync()
+            if st == nil then
+                return cb(true)
+            end
+            confirmDesiredAsync(desired, CONFIRM_TIMEOUT, CONFIRM_INTERVAL, function(confirmed)
+                if confirmed then
+                    cb(true)
+                else
+                    nextStep(false)
+                end
+            end)
+        end)
+    end)
+
+    -- Iterator
+    local function step(i, lastOk)
+        if i > #methods then
+            cb(false)
+            return
+        end
+        methods[i](function(nextOk)
+            step(i + 1, nextOk)
+        end)
+    end
+    step(methodIdx or 1, false)
 end
 
--- Retry wrapper
+-- ===== Retry + orchestration =====
+local function clearSafetyTimers()
+    for _, t in ipairs(M._safetyTimers) do
+        if t then
+            t:stop()
+        end
+    end
+    M._safetyTimers = {}
+end
+
+local function scheduleSafetyEnsures()
+    clearSafetyTimers()
+    for _, off in ipairs(SAFETY_ENSURE_OFFSETS) do
+        local t = hs.timer.doAfter(off, function()
+            -- Only act if still wanting BT ON
+            if M._wantBTOn then
+                -- Do not start a new cycle if one is already running
+                if not M._inflight then
+                    M._retryCount = 0
+                    M._inflight = true
+                    applyWithMethod(true, 1, function(ok)
+                        M._inflight = false
+                        if not ok then
+                            -- Let the main retry loop handle further attempts
+                            -- (avoid starting it from here to prevent overlaps)
+                        end
+                    end)
+                end
+            end
+        end)
+        table.insert(M._safetyTimers, t)
+    end
+end
+
 local function scheduleRetry()
     if M._retryCount >= M._maxRetries then
         print("⚠️ Reached max retries for Bluetooth toggle; giving up.")
@@ -210,14 +304,15 @@ local function scheduleRetry()
             scheduleRetry()
             return
         end
-        local ok = trySetBluetooth(desired)
-        if ok then
-            print(string.format("✅ Bluetooth '%s' after %d retries.", desired and "On" or "Off", M._retryCount))
-            M._inflight = false
-            M._retryCount = 0
-        else
-            scheduleRetry()
-        end
+        applyWithMethod(desired, 1, function(ok)
+            if ok then
+                print(string.format("✅ Bluetooth '%s' after %d retries.", desired and "On" or "Off", M._retryCount))
+                M._inflight = false
+                M._retryCount = 0
+            else
+                scheduleRetry()
+            end
+        end)
     end)
 end
 
@@ -228,25 +323,30 @@ local function ensureBluetoothState()
     M._inflight = true
     M._retryCount = 0
 
+    -- If we want ON but still locked, defer
     if M._wantBTOn and not M._unlocked then
+        M._inflight = false
         scheduleRetry()
         return
     end
 
-    local st = btReadState()
+    -- If we can read current state and it's already correct, exit
+    local st = btReadStateSync()
     if st ~= nil and st == M._wantBTOn then
         M._inflight = false
         return
     end
 
-    local ok = trySetBluetooth(M._wantBTOn)
-    if ok then
-        print(string.format("✅ Bluetooth '%s' (first attempt).", M._wantBTOn and "On" or "Off"))
-        M._inflight = false
-        M._retryCount = 0
-    else
-        scheduleRetry()
-    end
+    applyWithMethod(M._wantBTOn, 1, function(ok)
+        if ok then
+            print(string.format("✅ Bluetooth '%s' (first attempt).", M._wantBTOn and "On" or "Off"))
+            M._inflight = false
+            M._retryCount = 0
+        else
+            M._inflight = false
+            scheduleRetry()
+        end
+    end)
 end
 
 -- ===== Lid detection (polling) =====
@@ -261,6 +361,7 @@ local function isBuiltInDisplayPresent()
 end
 
 local function onLidClosed()
+    clearSafetyTimers()
     hs.timer.doAfter(CLOSE_DELAY, function()
         M._wantBTOn = false
         ensureBluetoothState()
@@ -273,7 +374,9 @@ local function onLidOpened()
     hs.timer.doAfter(OPEN_DELAY, function()
         M._wantBTOn = true
         ensureBluetoothState()
-        print("🔓 Lid opened — Bluetooth ON (with verification & retries).")
+        -- Schedule extra ensures in case services come up slowly
+        scheduleSafetyEnsures()
+        print("🔓 Lid opened — Bluetooth ON (async confirm & safety net).")
     end)
 end
 
@@ -302,11 +405,16 @@ local function handleCaffeinateEvent(event)
         hs.caffeinate.watcher.systemDidWake or event == hs.caffeinate.watcher.screensDidWake then
         M._unlocked = true
         if M._wantBTOn then
-            hs.timer.doAfter(0.8, ensureBluetoothState)
+            -- Kick immediate ensure and safety net after unlock
+            hs.timer.doAfter(0.6, function()
+                ensureBluetoothState()
+                scheduleSafetyEnsures()
+            end)
         end
     elseif event == hs.caffeinate.watcher.screensDidLock or event == hs.caffeinate.watcher.sessionDidResignActive or
         event == hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.screensDidSleep then
         M._unlocked = false
+        clearSafetyTimers()
     end
 end
 
@@ -340,6 +448,7 @@ function M.stop()
         M._cafWatcher:stop();
         M._cafWatcher = nil
     end
+    clearSafetyTimers()
     M._inflight = false
     print("🛑 Lid monitoring stopped.")
 end
