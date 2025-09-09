@@ -5,23 +5,37 @@ local M = {}
 M._maxRetries = 6 -- maximum retries for full apply cycle
 M._baseDelay = 0.9 -- base backoff delay (seconds)
 local CLOSE_DELAY = 0.4 -- after detecting lid close
-local OPEN_DELAY = 1.2 -- after detecting lid open (allow wake)
+local OPEN_DELAY = 1.6 -- after detecting lid open (allow wake)  -- NEW: was 1.2
 local POLL_INTERVAL = 2.0 -- lid polling interval
 
 -- Confirmation timings (async polling)
-local CONFIRM_TIMEOUT = 6.0 -- seconds to wait for state confirmation
+local CONFIRM_TIMEOUT = 7.0 -- seconds to wait for state confirmation   -- NEW: +1s
 local CONFIRM_INTERVAL = 0.25 -- seconds between polls
 
--- Post-wake safety net: extra ensure calls
-local SAFETY_ENSURE_OFFSETS = {0.0, 2.0, 6.0} -- seconds after unlock/lid-open
+-- Post-wake safety net (extra ensures)
+local SAFETY_ENSURE_OFFSETS = {0.0, 3.0, 9.0} -- NEW: spaced a bit wider
+
+-- Watchdog window: continuously ensure BT ON after wake/unlock
+local WATCHDOG_WINDOW = 30.0 -- seconds                                   -- NEW
+local WATCHDOG_PERIOD = 1.0 -- seconds                                   -- NEW
+
+-- Fallback: force a power cycle if ON fails
+local POWER_CYCLE_ON_FAIL = true -- NEW
+local POWER_CYCLE_DELAY = 0.6 -- seconds between OFF and ON     -- NEW
+
+-- Optional: auto-connect known devices once BT is ON (addresses in AA:BB:CC:DD:EE:FF)
+local KNOWN_DEVICE_MACS = { -- NEW (fill if you want)
+    -- "XX:XX:XX:XX:XX:XX",
+}
 
 -- ===== Internals =====
-M._wantBTOn = false -- desired Bluetooth state
-M._unlocked = true -- session is usable (set by caffeinate watcher)
-M._inflight = false -- an apply/confirm cycle is running
+M._wantBTOn = false
+M._unlocked = true
+M._inflight = false
 M._retryCount = 0
 M._cafWatcher = nil
 M._safetyTimers = {}
+M._watchdog = nil -- NEW
 local timer = nil
 local lastBuiltInPresent = nil
 
@@ -59,7 +73,6 @@ local BLUEUTIL = blueutilPath()
 
 -- ===== Bluetooth state (read/confirm) =====
 local function btReadStateSync()
-    -- returns true/false or nil if unknown
     if BLUEUTIL then
         local out = hs.execute(string.format("%q --power", BLUEUTIL), true)
         if out then
@@ -80,12 +93,12 @@ local function confirmDesiredAsync(desired, timeout, interval, onDone)
     t = hs.timer.doEvery(interval or CONFIRM_INTERVAL, function()
         local st = btReadStateSync()
         if st ~= nil and st == desired then
-            t:stop()
-            onDone(true)
+            t:stop();
+            onDone(true);
             return
         end
         if now() >= deadline then
-            t:stop()
+            t:stop();
             onDone(false)
         end
     end)
@@ -94,21 +107,56 @@ end
 -- ===== Runners (async where possible) =====
 local function runBlueutilSetAsync(targetOn, cb)
     if not BLUEUTIL then
-        cb(false, "no-blueutil")
+        cb(false, "no-blueutil");
         return
     end
     local task = hs.task.new(BLUEUTIL, function(exitCode, stdOut, stdErr)
         cb(exitCode == 0, stdOut, stdErr)
     end, {"--power", targetOn and "1" or "0"})
     if not task then
-        cb(false, "task-new-failed")
+        cb(false, "task-new-failed");
         return
     end
     task:start()
 end
 
+local function runBlueutilConnectAsync(mac, cb) -- NEW
+    if not BLUEUTIL then
+        cb(false, "no-blueutil");
+        return
+    end
+    local task = hs.task.new(BLUEUTIL, function(exitCode, stdOut, stdErr)
+        cb(exitCode == 0, stdOut, stdErr)
+    end, {"--connect", mac})
+    if not task then
+        cb(false, "task-new-failed");
+        return
+    end
+    task:start()
+end
+
+local function connectKnownDevicesAsync()
+    if not BLUEUTIL or #KNOWN_DEVICE_MACS == 0 then
+        return
+    end
+    -- fire and forget in sequence with small gaps
+    local i = 1
+    local function step()
+        local mac = KNOWN_DEVICE_MACS[i];
+        if not mac then
+            return
+        end
+        runBlueutilConnectAsync(mac, function()
+            hs.timer.doAfter(0.2, function()
+                i = i + 1;
+                step()
+            end)
+        end)
+    end
+    step()
+end
+
 local function runShortcutOSA(name, cb)
-    -- OSA is synchronous; run in a tiny doAfter to avoid deep recursion
     hs.timer.doAfter(0, function()
         local ok, _, err = hs.osascript.applescript(string.format([[
             tell application "Shortcuts Events"
@@ -122,14 +170,14 @@ end
 local function runShortcutCLI(name, cb)
     local bin = "/usr/bin/shortcuts"
     if not hs.fs.attributes(bin) then
-        cb(false, "shortcuts-cli-missing")
+        cb(false, "shortcuts-cli-missing");
         return
     end
     local task = hs.task.new(bin, function(exitCode, stdOut, stdErr)
         cb(exitCode == 0, stdOut or "", stdErr or "")
     end, {"run", name, "--show-errors"})
     if not task then
-        cb(false, "task-new-failed")
+        cb(false, "task-new-failed");
         return
     end
     task:start()
@@ -139,7 +187,7 @@ local function runShortcutURL(name, restoreApp, cb)
     local ok = hs.urlevent.openURL("shortcuts://run-shortcut?name=" .. urlEncode(name))
     if ok then
         hs.timer.doAfter(0.25, function()
-            local sh = hs.application.get("Shortcuts")
+            local sh = hs.application.get("Shortcuts");
             if sh then
                 sh:hide()
             end
@@ -151,25 +199,45 @@ local function runShortcutURL(name, restoreApp, cb)
     cb(ok)
 end
 
--- Try methods in order with confirmation at each step
+-- ===== Apply methods with confirmation + power-cycle fallback =====
 local function applyWithMethod(desired, methodIdx, cb)
     local targetName = desired and "Bluetooth On" or "Bluetooth Off"
     local methods = {}
 
-    -- 1) blueutil (if available)
+    -- 1) blueutil set
     if BLUEUTIL then
         table.insert(methods, function(nextStep)
             runBlueutilSetAsync(desired, function(ok)
                 if not ok then
                     print("⚠️ blueutil failed; trying next method…")
-                    nextStep(false)
-                    return
+                    return nextStep(false)
                 end
-                confirmDesiredAsync(desired, 5.0, 0.2, function(confirmed)
+                confirmDesiredAsync(desired, 5.5, 0.2, function(confirmed)
                     if confirmed then
+                        if desired then
+                            connectKnownDevicesAsync()
+                        end -- NEW
                         cb(true)
                     else
-                        nextStep(false)
+                        if POWER_CYCLE_ON_FAIL and desired then
+                            -- Force OFF→ON cycle and re-confirm
+                            runBlueutilSetAsync(false, function()
+                                hs.timer.doAfter(POWER_CYCLE_DELAY, function()
+                                    runBlueutilSetAsync(true, function()
+                                        confirmDesiredAsync(true, 6.0, 0.25, function(c2)
+                                            if c2 then
+                                                connectKnownDevicesAsync()
+                                                cb(true)
+                                            else
+                                                nextStep(false)
+                                            end
+                                        end)
+                                    end)
+                                end)
+                            end)
+                        else
+                            nextStep(false)
+                        end
                     end
                 end)
             end)
@@ -182,13 +250,15 @@ local function applyWithMethod(desired, methodIdx, cb)
             if not ok then
                 return nextStep(false)
             end
-            -- If we can't read state (no blueutil), assume success
-            local st = btReadStateSync()
+            local st = btReadStateSync();
             if st == nil then
                 return cb(true)
             end
             confirmDesiredAsync(desired, CONFIRM_TIMEOUT, CONFIRM_INTERVAL, function(confirmed)
                 if confirmed then
+                    if desired then
+                        connectKnownDevicesAsync()
+                    end
                     cb(true)
                 else
                     nextStep(false)
@@ -203,12 +273,15 @@ local function applyWithMethod(desired, methodIdx, cb)
             if not ok then
                 return nextStep(false)
             end
-            local st = btReadStateSync()
+            local st = btReadStateSync();
             if st == nil then
                 return cb(true)
             end
             confirmDesiredAsync(desired, CONFIRM_TIMEOUT, CONFIRM_INTERVAL, function(confirmed)
                 if confirmed then
+                    if desired then
+                        connectKnownDevicesAsync()
+                    end
                     cb(true)
                 else
                     nextStep(false)
@@ -227,12 +300,15 @@ local function applyWithMethod(desired, methodIdx, cb)
             if not ok then
                 return nextStep(false)
             end
-            local st = btReadStateSync()
+            local st = btReadStateSync();
             if st == nil then
                 return cb(true)
             end
             confirmDesiredAsync(desired, CONFIRM_TIMEOUT, CONFIRM_INTERVAL, function(confirmed)
                 if confirmed then
+                    if desired then
+                        connectKnownDevicesAsync()
+                    end
                     cb(true)
                 else
                     nextStep(false)
@@ -241,17 +317,55 @@ local function applyWithMethod(desired, methodIdx, cb)
         end)
     end)
 
-    -- Iterator
-    local function step(i, lastOk)
+    -- iterator
+    local function step(i)
         if i > #methods then
-            cb(false)
+            cb(false);
             return
         end
-        methods[i](function(nextOk)
-            step(i + 1, nextOk)
+        methods[i](function()
+            step(i + 1)
         end)
     end
-    step(methodIdx or 1, false)
+    step(methodIdx or 1)
+end
+
+-- ===== Watchdog =====
+local function startWatchdog(duration) -- NEW
+    if M._watchdog then
+        M._watchdog:stop();
+        M._watchdog = nil
+    end
+    local deadline = now() + (duration or WATCHDOG_WINDOW)
+    M._watchdog = hs.timer.doEvery(WATCHDOG_PERIOD, function()
+        if not M._wantBTOn then
+            return
+        end
+        if now() > deadline then
+            M._watchdog:stop();
+            M._watchdog = nil;
+            return
+        end
+        local st = btReadStateSync()
+        if st ~= nil and not st and not M._inflight and M._unlocked then
+            -- Radio slipped OFF; enforce ON again
+            M._retryCount = 0
+            M._inflight = true
+            applyWithMethod(true, 1, function(ok)
+                M._inflight = false
+                if not ok then
+                    -- Let main retry handle; watchdog will keep checking
+                end
+            end)
+        end
+    end)
+end
+
+local function stopWatchdog() -- NEW
+    if M._watchdog then
+        M._watchdog:stop();
+        M._watchdog = nil
+    end
 end
 
 -- ===== Retry + orchestration =====
@@ -268,20 +382,13 @@ local function scheduleSafetyEnsures()
     clearSafetyTimers()
     for _, off in ipairs(SAFETY_ENSURE_OFFSETS) do
         local t = hs.timer.doAfter(off, function()
-            -- Only act if still wanting BT ON
-            if M._wantBTOn then
-                -- Do not start a new cycle if one is already running
-                if not M._inflight then
-                    M._retryCount = 0
-                    M._inflight = true
-                    applyWithMethod(true, 1, function(ok)
-                        M._inflight = false
-                        if not ok then
-                            -- Let the main retry loop handle further attempts
-                            -- (avoid starting it from here to prevent overlaps)
-                        end
-                    end)
-                end
+            if M._wantBTOn and not M._inflight then
+                M._retryCount = 0
+                M._inflight = true
+                applyWithMethod(true, 1, function(ok)
+                    M._inflight = false
+                    -- if it fails, the watchdog + retry loop will keep trying
+                end)
             end
         end)
         table.insert(M._safetyTimers, t)
@@ -299,7 +406,6 @@ local function scheduleRetry()
     hs.timer.doAfter(delay, function()
         local desired = M._wantBTOn
         if desired and not M._unlocked then
-            -- still locked; retry later without counting
             M._retryCount = M._retryCount - 1
             scheduleRetry()
             return
@@ -323,14 +429,12 @@ local function ensureBluetoothState()
     M._inflight = true
     M._retryCount = 0
 
-    -- If we want ON but still locked, defer
     if M._wantBTOn and not M._unlocked then
         M._inflight = false
         scheduleRetry()
         return
     end
 
-    -- If we can read current state and it's already correct, exit
     local st = btReadStateSync()
     if st ~= nil and st == M._wantBTOn then
         M._inflight = false
@@ -361,6 +465,7 @@ local function isBuiltInDisplayPresent()
 end
 
 local function onLidClosed()
+    stopWatchdog() -- NEW
     clearSafetyTimers()
     hs.timer.doAfter(CLOSE_DELAY, function()
         M._wantBTOn = false
@@ -374,28 +479,24 @@ local function onLidOpened()
     hs.timer.doAfter(OPEN_DELAY, function()
         M._wantBTOn = true
         ensureBluetoothState()
-        -- Schedule extra ensures in case services come up slowly
         scheduleSafetyEnsures()
-        print("🔓 Lid opened — Bluetooth ON (async confirm & safety net).")
+        startWatchdog(WATCHDOG_WINDOW) -- NEW
+        print("🔓 Lid opened — Bluetooth ON (watchdog + safety net).")
     end)
 end
 
 local function checkLidState()
     local builtInPresent = isBuiltInDisplayPresent()
-
     if lastBuiltInPresent == nil then
-        lastBuiltInPresent = builtInPresent
+        lastBuiltInPresent = builtInPresent;
         return
     end
-
     if lastBuiltInPresent and not builtInPresent then
         onLidClosed()
     end
-
     if (not lastBuiltInPresent) and builtInPresent then
         onLidOpened()
     end
-
     lastBuiltInPresent = builtInPresent
 end
 
@@ -405,15 +506,16 @@ local function handleCaffeinateEvent(event)
         hs.caffeinate.watcher.systemDidWake or event == hs.caffeinate.watcher.screensDidWake then
         M._unlocked = true
         if M._wantBTOn then
-            -- Kick immediate ensure and safety net after unlock
-            hs.timer.doAfter(0.6, function()
+            hs.timer.doAfter(0.8, function()
                 ensureBluetoothState()
                 scheduleSafetyEnsures()
+                startWatchdog(WATCHDOG_WINDOW) -- NEW
             end)
         end
     elseif event == hs.caffeinate.watcher.screensDidLock or event == hs.caffeinate.watcher.sessionDidResignActive or
         event == hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.screensDidSleep then
         M._unlocked = false
+        stopWatchdog() -- NEW
         clearSafetyTimers()
     end
 end
@@ -448,6 +550,7 @@ function M.stop()
         M._cafWatcher:stop();
         M._cafWatcher = nil
     end
+    stopWatchdog()
     clearSafetyTimers()
     M._inflight = false
     print("🛑 Lid monitoring stopped.")
