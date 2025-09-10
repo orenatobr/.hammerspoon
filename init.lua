@@ -3,7 +3,7 @@ local autoBrightness = require("modules.auto_brightness")
 local windowCycle = require("modules.window_cycle")
 local launchPadShortcut = require("modules.launchpad_hotkey")
 local filezillaCaffeinate = require("modules.filezilla_caffeinate")
--- local teamsMouse = require("modules.teams_mouse")
+local keepalive = require("modules.idle_keepalive")
 local autoLock = require("modules.auto_lock")
 -- local teamsFocus = require("modules.teams_focus_restore")
 local refreshPage = require("modules.refresh_hotkey")
@@ -17,7 +17,10 @@ local autoFullscreen = require("modules.auto_fullscreen")
 -- Start scheduled automations
 autoBrightness.start()
 filezillaCaffeinate.start()
--- teamsMouse.start()
+keepalive.start({
+    app_names = {"Microsoft Teams", "Zoom", "Slack"}, -- customize
+    bundle_ids = {"com.microsoft.teams2"} -- customize or leave empty
+})
 autoLock.start()
 -- teamsFocus.start()
 -- awsTabMonitor.start()
