@@ -1,6 +1,6 @@
 -- ~/.hammerspoon/modules/idle_keepalive.lua
 -- Keep "Available" in selected apps by breaking system idle with a tiny mouse jiggle + (safe) click.
--- Focus is never changed. For left-click, we pick an empty Desktop pixel to avoid UI actions.
+-- Focus is never changed. For left-click, click the top-center menubar region, with safe fallbacks.
 local M = {}
 
 -- ===== Config =====
@@ -13,12 +13,16 @@ local JIGGLE_BACKOFF = 0.08 -- seconds between out-and-back
 local DO_MOUSE_CLICK = true -- also click to satisfy click counters
 local CLICK_BUTTON = "left" -- "left" | "middle" | "right"
 local CLICK_DELAY = 0.0 -- optional hs.eventtap click delay
-local RESTORE_POINTER = true -- move pointer back after a desktop click
+local RESTORE_POINTER = true -- move pointer back after click
 
--- Safe-desktop search
-local SAFE_MARGIN = 48 -- inset from screen edges for candidate points
-local SAFE_GRID_STEP = 160 -- grid spacing for candidate points when scanning
--- Note: larger SAFE_MARGIN avoids menu bar/dock hot corners; grid tries many points.
+-- Menubar click region tuning
+local MENUBAR_X_FRACTION = 0.5 -- 0.0 = far left, 0.5 = center, 1.0 = far right
+local MENUBAR_Y_FRACTION = 0.5 -- vertical within the menubar (0..1)
+local MENUBAR_EDGE_INSET = 24 -- px inset from extreme left/right to avoid menu extras/notch edges
+
+-- Fallback desktop search (used only if menubar not available)
+local SAFE_MARGIN = 48
+local SAFE_GRID_STEP = 160
 
 -- Target apps (names and/or bundle IDs). Match is OR between lists.
 M.config = {
@@ -63,7 +67,6 @@ end
 
 local function tinyJiggle()
     local p = hs.mouse.absolutePosition()
-    -- 1px move and back — doesn’t change focus
     hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.mouseMoved, {
         x = p.x + JIGGLE_OFFSET,
         y = p.y + JIGGLE_OFFSET
@@ -76,7 +79,7 @@ local function tinyJiggle()
     end)
 end
 
--- ----- Safe Desktop click support -----
+-- ===== Geometry helpers =====
 local function pointInFrame(pt, fr)
     return pt.x >= fr.x and pt.x <= fr.x + fr.w and pt.y >= fr.y and pt.y <= fr.y + fr.h
 end
@@ -99,20 +102,17 @@ local function findSafeDesktopPoint()
     end
     local sf = scr:frame()
 
-    -- Get list of visible, standard windows in current Space (no hidden/minimized)
-    local wf = hs.window.filter.new():setCurrentSpace(true):setDefaultFilter{
+    local wf = hs.window.filter.new():setCurrentSpace(true):setDefaultFilter({
         visible = true,
         currentSpace = true,
         allowScreens = {scr:id()},
-        allowTitles = hs.window.filter.ignoreAlways, -- we don't filter by title; just faster
+        allowTitles = hs.window.filter.ignoreAlways,
         allowRoles = {"AXStandardWindow"}
-    }
+    })
 
     local windows = wf:getWindows()
 
-    -- Candidate points: corners/edges inset + a coarse grid scan
     local candidates = {}
-
     local function add(x, y)
         table.insert(candidates, {
             x = math.floor(x),
@@ -121,23 +121,23 @@ local function findSafeDesktopPoint()
     end
 
     local m = SAFE_MARGIN
-    -- corners (inset)
+    -- corners
     add(sf.x + m, sf.y + m)
     add(sf.x + sf.w - m, sf.y + m)
     add(sf.x + m, sf.y + sf.h - m)
     add(sf.x + sf.w - m, sf.y + sf.h - m)
-    -- edges midpoints (inset)
+    -- edges midpoints
     add(sf.x + sf.w / 2, sf.y + m)
     add(sf.x + sf.w / 2, sf.y + sf.h - m)
     add(sf.x + m, sf.y + sf.h / 2)
     add(sf.x + sf.w - m, sf.y + sf.h / 2)
-    -- center-ish points
+    -- inner points
     add(sf.x + sf.w * 0.25, sf.y + sf.h * 0.25)
     add(sf.x + sf.w * 0.75, sf.y + sf.h * 0.25)
     add(sf.x + sf.w * 0.25, sf.y + sf.h * 0.75)
     add(sf.x + sf.w * 0.75, sf.y + sf.h * 0.75)
 
-    -- grid scan
+    -- grid
     local step = SAFE_GRID_STEP
     for y = sf.y + m, sf.y + sf.h - m, step do
         for x = sf.x + m, sf.x + sf.w - m, step do
@@ -145,52 +145,91 @@ local function findSafeDesktopPoint()
         end
     end
 
-    -- pick first candidate that is not covered by any window
     for _, pt in ipairs(candidates) do
         if not pointCoveredByAnyWindow(pt, windows) then
             return pt
         end
     end
-
-    return nil -- none found (e.g., full-screen app)
+    return nil
 end
 
+-- Compute the top-center menubar point on the primary screen.
+-- Uses the difference between fullFrame() (includes menubar) and frame() (below menubar).
+local function menubarClickPoint()
+    local scr = hs.screen.primaryScreen()
+    if not scr then
+        return nil
+    end
+    local full = scr:fullFrame()
+    local fr = scr:frame()
+    local menubarH = fr.y - full.y -- >0 when menubar is visible
+    if not menubarH or menubarH <= 0 then
+        return nil -- menubar likely hidden (fullscreen/auto-hide)
+    end
+
+    local xMin = full.x + MENUBAR_EDGE_INSET
+    local xMax = full.x + full.w - MENUBAR_EDGE_INSET
+    local x = math.floor(xMin + (xMax - xMin) * MENUBAR_X_FRACTION)
+    local y = math.floor(full.y + menubarH * MENUBAR_Y_FRACTION)
+
+    return {
+        x = x,
+        y = y
+    }
+end
+
+-- ===== Clicking =====
 local function safeClickLeft()
-    -- Try to click only on the Desktop; if we can't find a safe pixel, skip left-click.
     local original = hs.mouse.absolutePosition()
-    local safePt = findSafeDesktopPoint()
-    if not safePt then
-        -- Fallback: avoid risky left-click; choose middle click instead to still count
-        if hs.eventtap.middleClick then
-            hs.eventtap.middleClick(original, CLICK_DELAY)
-        else
-            hs.eventtap.otherClick(original, 2)
+
+    -- 1) Try menubar center region (your red box)
+    local mb = menubarClickPoint()
+    if mb then
+        hs.mouse.absolutePosition(mb)
+        hs.eventtap.leftClick(mb, CLICK_DELAY)
+        if RESTORE_POINTER then
+            hs.mouse.absolutePosition(original)
         end
-        return
+        return "menubar"
     end
-    hs.mouse.absolutePosition(safePt)
-    hs.eventtap.leftClick(safePt, CLICK_DELAY)
-    if RESTORE_POINTER then
-        hs.mouse.absolutePosition(original)
+
+    -- 2) Fallback to a safe desktop pixel (uncovered by windows)
+    local safePt = findSafeDesktopPoint()
+    if safePt then
+        hs.mouse.absolutePosition(safePt)
+        hs.eventtap.leftClick(safePt, CLICK_DELAY)
+        if RESTORE_POINTER then
+            hs.mouse.absolutePosition(original)
+        end
+        return "desktop"
     end
+
+    -- 3) Final fallback: middle click at current pointer (counts but usually does nothing)
+    if hs.eventtap.middleClick then
+        hs.eventtap.middleClick(original, CLICK_DELAY)
+    else
+        hs.eventtap.otherClick(original, 2)
+    end
+    return "middle-fallback"
 end
 
 local function safeClickAtPointer()
     if not DO_MOUSE_CLICK then
-        return
+        return "disabled"
     end
     local p = hs.mouse.absolutePosition()
     if CLICK_BUTTON == "left" then
-        safeClickLeft()
+        return safeClickLeft()
     elseif CLICK_BUTTON == "right" then
         hs.eventtap.rightClick(p, CLICK_DELAY)
+        return "right"
     else
-        -- middle (default)
         if hs.eventtap.middleClick then
             hs.eventtap.middleClick(p, CLICK_DELAY)
         else
             hs.eventtap.otherClick(p, 2)
         end
+        return "middle"
     end
 end
 
@@ -207,17 +246,15 @@ local function startTimer()
             return
         end
 
-        -- We pause/resume using the caffeinate watcher below; no need to read caffeinate props here.
-
         local idle = hs.host.idleTime()
         if idle >= IDLE_THRESHOLD and not _busy then
             _busy = true
             tinyJiggle()
             hs.timer.doAfter(JIGGLE_BACKOFF, function()
-                safeClickAtPointer()
+                local how = safeClickAtPointer()
                 _busy = false
-                print(string.format("🖱️ Keep-alive: jiggle + %s click%s", CLICK_BUTTON, (CLICK_BUTTON == "left" and
-                    (findSafeDesktopPoint() and " (desktop)" or " (fallback)")) or ""))
+                print(string.format("🖱️ Keep-alive: jiggle + %s click",
+                    (CLICK_BUTTON == "left" and how) or CLICK_BUTTON))
             end)
         end
     end)
@@ -238,7 +275,7 @@ local function handleAppEvent(_, event, _)
         if targetsRunningNow() then
             startTimer()
         else
-            stopTimer()
+            stopTimer();
             print("🛑 Idle keep-alive paused (no target apps).")
         end
     end
