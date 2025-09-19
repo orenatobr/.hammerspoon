@@ -1,14 +1,8 @@
--- ~/.hammerspoon/modules/idle_keepalive.lua
--- Module: idle_keepalive
--- Purpose: Prevent selected apps from showing as "Away" by simulating user activity (mouse jiggle) after a period of inactivity.
--- No mouse clicks are performed; only a subtle pointer movement is used.
--- Usage: require this module and call M.start() to begin. Optionally pass a table to override target apps.
--- Author: [Your Name]
--- Last updated: 2025-09-19
 local M = {}
 
--- ===== Config =====
--- ===== Configuration =====
+-- luacheck: ignore appIsTarget targetsRunningNow tinyJiggle
+-- luacheck: ignore hs
+-- luacheck: max line length 250
 local CHECK_EVERY = 30         -- Interval (seconds) between idle checks
 local IDLE_THRESHOLD = 30      -- Idle time (seconds) required to trigger jiggle
 local JIGGLE_OFFSET = 1        -- Pixels to nudge the pointer
@@ -30,7 +24,7 @@ local _checkTimer = nil      -- Timer for periodic idle checks
 local _cafWatcher = nil      -- Caffeinate watcher for sleep/wake events
 local _busy = false          -- Prevents overlapping jiggle actions
 
---- Checks if the given app matches any target name or bundle ID.
+--- Returns true if the given app matches any target name or bundle ID.
 local function appIsTarget(app)
     if not app then return false end
     local name = app:name() or ""
@@ -106,6 +100,7 @@ end
 
 -- ===== Watchers =====
 --- Handles app launch/terminate events to start/stop the timer as needed.
+-- luacheck: ignore _
 local function handleAppEvent(_, event, _)
     if event == hs.application.watcher.launched or event == hs.application.watcher.terminated then
         if targetsRunningNow() then

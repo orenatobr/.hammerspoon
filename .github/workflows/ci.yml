@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: '5.3'
+          cache: false
+
+      - name: Install LuaRocks
+        uses: leafo/gh-actions-luarocks@v4
+
+      - name: Install dependencies
+        run: |
+          luarocks install lua_cliargs
+          luarocks install luasystem
+          luarocks install dkjson
+          luarocks install say
+          luarocks install luassert
+          luarocks install lua-term
+          luarocks install penlight
+          luarocks install luafilesystem
+          luarocks install mediator_lua
+          luarocks install busted
+          luarocks install datafile
+          luarocks install luacov
+
+      - name: Install luacheck
+        run: luarocks install luacheck
+
+      - name: Run unit and integration tests
+        run: |
+          busted tests/ --pattern='test_.*.lua'
+
+      - name: Run coverage
+        run: |
+          busted --coverage tests/ --pattern='test_.*.lua'
+          luacov
+          cat luacov.report.out
+
+      - name: Lint Markdown
+        run: |
+          npx markdownlint-cli '**/*.md'
+
+      - name: Run luacheck lint
+        run: luacheck modules

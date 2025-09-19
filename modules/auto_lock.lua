@@ -1,7 +1,5 @@
--- ~/.hammerspoon/modules/lid_control.lua
--- Locks the screen on lid close. No Bluetooth toggling.
+-- luacheck: globals hs
 local M = {}
-
 -- ===== Config =====
 local OPEN_DELAY = 1.0 -- wait after lid open (for stability/logs only)
 local CLOSE_DELAY = 0.4 -- wait after lid close before locking
@@ -17,6 +15,7 @@ local function internalDisplayPresent()
     for _, s in ipairs(hs.screen.allScreens()) do
         local nm = (s:name() or ""):lower()
         for _, pat in ipairs(INTERNAL_HINTS) do
+
             if nm:match(pat) then
                 return true
             end
@@ -25,7 +24,8 @@ local function internalDisplayPresent()
     return false
 end
 
-local function debounce(delay, fn)
+-- luacheck: ignore fn
+local function debounce(delay, _)
     if M._debouncer then
         M._debouncer:stop()
     end
@@ -71,7 +71,7 @@ function M.start()
         M._screenWatcher = hs.screen.watcher.new(onScreensChanged)
         M._screenWatcher:start()
         lastInternalPresent = internalDisplayPresent()
-        print("✅ lid_control started (lock on lid close; no Bluetooth)")
+    print("✅ lid_control started (lock on lid close)")
     end
 end
 

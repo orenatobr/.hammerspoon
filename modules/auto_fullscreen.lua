@@ -1,4 +1,6 @@
--- ~/.hammerspoon/modules/auto_fullscreen.lua
+-- luacheck: ignore hs
+-- luacheck: max line length 250
+
 local M = {}
 
 -- ======================================
@@ -22,10 +24,12 @@ M.config = {
 -- ======================================
 -- Helpers
 -- ======================================
+--- Returns the internal screen object based on config hint (fallback: primary screen).
 local function internalScreen(config)
     return hs.screen.find(config.internal_hint) or hs.screen.primaryScreen()
 end
 
+--- Returns a unique identifier for a screen.
 local function screenUUID(scr)
     if not scr then
         return nil
@@ -34,6 +38,7 @@ local function screenUUID(scr)
     return (scr.getUUID and scr:getUUID()) or (scr:name() .. ":" .. tostring(scr:id()))
 end
 
+--- Returns true if the window is on the internal screen.
 local function isOnInternalScreen(win, config)
     if not win then
         return false
@@ -45,6 +50,7 @@ local function isOnInternalScreen(win, config)
     return screenUUID(scr) == screenUUID(internalScreen(config))
 end
 
+--- Returns true if the window's app is excluded from auto actions.
 local function isExcluded(win, config)
     local app = win and win:application()
     if not app then
@@ -59,6 +65,7 @@ local function isExcluded(win, config)
     return false
 end
 
+--- Returns true if val matches any value in list.
 local function anyEquals(val, list)
     for _, v in ipairs(list or {}) do
         if val == v then
@@ -68,6 +75,7 @@ local function anyEquals(val, list)
     return false
 end
 
+--- Returns true if the window should be maximized based on config.
 local function shouldMaximize(win, config)
     if not win then
         return false
@@ -86,6 +94,7 @@ end
 
 -- Only act on windows that actually have standard controls (close/min/zoom)
 -- This filters out Dock popovers, sheets without zoom, HUDs, etc.
+--- Returns true if the window is standard and resizable.
 local function isActionable(win)
     if not win then
         return false
@@ -99,6 +108,7 @@ local function isActionable(win)
     return true
 end
 
+--- Centers the window on its screen.
 local function centerWindow(win)
     if not win then
         return
@@ -115,15 +125,18 @@ local function centerWindow(win)
     win:setFrame(f)
 end
 
+--- Returns true if a and b are nearly equal (within eps).
 local function nearlyEqual(a, b, eps)
     eps = eps or 2
     return math.abs(a - b) <= eps
 end
 
+--- Returns true if two window frames are nearly equal.
 local function framesRoughlyEqual(a, b)
     return nearlyEqual(a.x, b.x) and nearlyEqual(a.y, b.y) and nearlyEqual(a.w, b.w) and nearlyEqual(a.h, b.h)
 end
 
+--- Maximizes or centers the window based on config and window state.
 local function fillWindow(win, config)
     if not win or isExcluded(win, config) then
         return
@@ -173,10 +186,12 @@ M._lastScreenChangeAt = 0
 M._winLastScreen = {} -- [win:id()] = screenUUID
 M._quarantine = {} -- [win:id()] = epochSecondsExpiry
 
+--- Returns the current epoch time in seconds.
 local function now()
     return hs.timer.secondsSinceEpoch()
 end
 
+--- Returns true if the window is in quarantine (skip auto actions).
 local function inQuarantine(win)
     local id = win and win:id()
     if not id then
@@ -193,6 +208,7 @@ local function inQuarantine(win)
     return false
 end
 
+--- Marks a window as quarantined for a given number of seconds.
 local function markQuarantine(win, seconds)
     local id = win and win:id()
     if not id then
@@ -201,6 +217,7 @@ local function markQuarantine(win, seconds)
     M._quarantine[id] = now() + (seconds or M.config.quarantine_seconds)
 end
 
+--- Remembers the screen UUID for a window.
 local function rememberScreen(win)
     local id = win and win:id()
     if not id then
@@ -213,6 +230,7 @@ local function rememberScreen(win)
     M._winLastScreen[id] = screenUUID(scr)
 end
 
+--- Returns the last remembered screen UUID for a window.
 local function lastScreenUUID(win)
     local id = win and win:id()
     if not id then
@@ -221,6 +239,7 @@ local function lastScreenUUID(win)
     return M._winLastScreen[id]
 end
 
+--- Ensures the window filter is created and returns it.
 local function ensureFilter()
     if M._wf then
         return M._wf
@@ -229,6 +248,7 @@ local function ensureFilter()
     return M._wf
 end
 
+--- Safely fills (maximizes/centers) a window after a short delay, if not quarantined or during screen change.
 local function safelyFill(win, config)
     hs.timer.doAfter(0.2, function()
         if not win then
@@ -247,6 +267,7 @@ local function safelyFill(win, config)
 end
 
 -- NEW: one-shot sweep to fix windows that landed on the internal screen during changes
+--- Sweeps all visible windows on the internal screen and fills them if needed.
 local function sweepInternalWindows()
     if M._screensChanging then
         return
@@ -263,6 +284,7 @@ end
 -- ======================================
 -- Watchers
 -- ======================================
+--- Handles screen change events, sets quarantine, and sweeps windows after settling.
 local function handleScreensChanged()
     M._screensChanging = true
     M._lastScreenChangeAt = now()
@@ -287,13 +309,15 @@ local function handleScreensChanged()
     print("[auto_fullscreen] screens changing...")
 end
 
+--- Subscribes to screen and caffeinate watchers for screen change events.
 local function subscribeWatchers()
     if not M._screenWatcher then
         M._screenWatcher = hs.screen.watcher.new(handleScreensChanged)
         M._screenWatcher:start()
     end
     if not M._cafWatcher then
-        M._cafWatcher = hs.caffeinate.watcher.new(function(event)
+    -- luacheck: ignore event
+    M._cafWatcher = hs.caffeinate.watcher.new(function(_)
             if event == hs.caffeinate.watcher.screensDidSleep or event == hs.caffeinate.watcher.screensDidWake or event ==
                 hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.systemDidWake then
                 handleScreensChanged()
@@ -306,6 +330,7 @@ end
 -- ======================================
 -- API
 -- ======================================
+--- Starts the auto_fullscreen module with optional config overrides.
 function M.start(opts)
     if M._running then
         print("[auto_fullscreen] already running")
@@ -387,6 +412,7 @@ function M.start(opts)
     print("[auto_fullscreen] started with config:", hs.inspect(M.config))
 end
 
+--- Stops the auto_fullscreen module and unsubscribes all watchers.
 function M.stop()
     if not M._running then
         return

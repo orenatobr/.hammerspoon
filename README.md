@@ -14,6 +14,7 @@ This config provides advanced window management, app-aware automations, presence
 - [Configuration and Troubleshooting](#configuration-and-troubleshooting)
 - [Repository Structure](#repository-structure)
 - [Optional CLI Integration](#optional-cli-integration)
+- [Development & Pre-commit Environment Setup](#development--pre-commit-environment-setup)
 
 ## Features
 
@@ -156,6 +157,8 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 
 Set up a global terminal command to reload Hammerspoon from anywhere:
 
+sudo chmod +x /opt/homebrew/bin/hs
+
 ### Create an `hs` command
 
 ```bash
@@ -163,9 +166,11 @@ sudo tee /opt/homebrew/bin/hs > /dev/null <<'EOF'
 #!/bin/bash
 open -g -a "Hammerspoon" --args -r
 EOF
+```
 
 sudo chmod +x /opt/homebrew/bin/hs
-```
+
+```bash
 
 > This works on Apple Silicon. If you're on Intel, use `/usr/local/bin/hs`.
 
@@ -177,113 +182,62 @@ hs
 
 To reload the Hammerspoon configuration from the terminal.
 
-- **`modules/teams_focus_restore.lua`**  
-  Tracks the **last useful** Teams window (standard window with non-empty title). On Teams activation, re-focuses that window so you don’t land on an empty/splash window.
+## Development & Pre-commit Environment Setup
 
-- **`modules/filezilla_caffeinate.lua`**  
-  Watches FileZilla. When launched, enables `hs.caffeinate.set("displayIdle", true)` and shows a toast (“Display won’t sleep”). On quit, disables and clears the alert.
+To run all pre-commit hooks (lint, tests, markdown checks) locally:
 
-- **`modules/auto_lock.lua`**  
-  Monitors **lid state** and triggers Apple Shortcuts to toggle Bluetooth accordingly (tries Shortcuts Events via AppleScript → CLI → URL scheme). Includes polling logic, helpful if system events don’t fire reliably.
+1. **Install dependencies**
+   - Install [Homebrew](https://brew.sh/) (if not already installed)
+   - Install Python (for pre-commit):
 
-- **`init.lua`**  
-  Requires all modules, starts watchers (Auto Brightness, AWS, Safari/VSCode managers, Teams watchers, FileZilla caffeinate, Auto-Lock), and binds hotkeys.
+     ```bash
+     brew install python
+     ```
 
-## Configuration
+   - Install Node.js (for markdownlint):
 
-- **Change hotkeys**  
-  Edit the `hs.hotkey.bind` calls inside each module.
+     ```bash
+     brew install node
+     ```
 
-- **AWS account mapping** (`modules/aws_tab_monitor.lua`)  
-  Update the `accountMap` table:
+   - Install Lua and LuaRocks:
 
-  ```lua
-  local accountMap = {
-    ["376714490571"] = "🔵 fsm-preprod",
-    ["074882943170"] = "🟡 fsm-int",
-    ["075373948405"] = "🟣 fsm-tooling",
-    ["885460024040"] = "🧪 fsm-e2e",
-    ["816634016139"] = "🔴 fsm-prod"
-  }
-  ```
+     ```bash
+     brew install lua luarocks
+     luarocks install busted
+     luarocks install luacheck
+     luarocks install luacov
+     ```
 
-- **Teams app name** (`modules/teams_focus_restore.lua`)  
-  If you use a variant (e.g., “Microsoft Teams (work or school)”), adjust:
+   - Install pre-commit:
 
-  ```lua
-  local appName = "Microsoft Teams"
-  ```
+     ```bash
+     pip3 install pre-commit
+     ```
 
-- **Bluetooth Shortcuts** (`modules/auto_lock.lua`)  
-  Make sure you have Apple Shortcuts named exactly **“Bluetooth On”** and **“Bluetooth Off”**, or change the module to match your shortcut names.
+2. **Install pre-commit hooks**
+   - In your repo root:
 
-- **Window placement**  
-  The Safari/VS Code managers act only when at least two displays exist. If you prefer a specific display or geometry, tweak those modules (use `hs.screen.allScreens()` and `hs.geometry` helpers).
+     ```bash
+     pre-commit install
+     ```
 
-## Troubleshooting
+   - This will enable automatic linting, testing, and markdown checks on every commit.
 
-- **Nothing happens on hotkeys**
+3. **Run all hooks manually**
+   - You can test all hooks before committing:
 
-  - Reload Hammerspoon config and check the console for prints.
-  - Ensure Hammerspoon has **Accessibility** permission.
+     ```bash
+     pre-commit run --all-files
+     ```
 
-- **Bluetooth automation doesn’t run**
+4. **What gets checked**
+   - **Lua lint**: `luacheck modules`
+   - **Lua tests**: `busted tests/ --pattern='test_.*.lua'`
+   - **Markdown lint**: `npx markdownlint-cli '**/*.md'`
 
-  - Confirm the Shortcuts exist and are named correctly.
-  - The module falls back OSA → CLI → URL; ensure “Shortcuts” app is installed and allowed to run.
+5. **Troubleshooting**
+   - If you see errors about missing commands, ensure you installed all dependencies above.
+   - For markdownlint line length errors, see `.markdownlint.json` to adjust rules.
 
-- **AWS account shows “Unknown”**
-
-  - The module currently parses **Safari** tab URLs. Ensure you’re on an AWS Console URL and add your account id to `accountMap`.
-
-- **Windows don’t move to the secondary display**
-  - The managers only run when multiple screens are available and windows are **standard** and **visible**.
-
-## Repository structure
-
-```text
-.hammerspoon/
-├── init.lua
-├── modules/
-│   ├── app_navigation.lua
-│   ├── auto_brightness.lua
-│   ├── auto_lock.lua
-│   ├── aws_tab_monitor.lua
-│   ├── filezilla_caffeinate.lua
-│   ├── launchpad_hotkey.lua
-│   ├── refresh_hotkey.lua
-│   ├── safari_window_manager.lua
-│   ├── tab_navigation.lua
-│   ├── teams_focus_restore.lua
-│   ├── teams_mouse.lua
-│   └── vscode_window_manager.lua
-├── .vscode/
-│   ├── launch.json
-│   └── tasks.json
-└── .github/CODEOWNERS
-```
-
-## 🧪 Optional CLI Integration
-
-Set up a global terminal command to reload Hammerspoon from anywhere:
-
-### ✅ Create an `hs` command
-
-```bash
-sudo tee /opt/homebrew/bin/hs > /dev/null <<'EOF'
-#!/bin/bash
-open -g -a "Hammerspoon" --args -r
-EOF
-
-sudo chmod +x /opt/homebrew/bin/hs
-```
-
-> This works on Apple Silicon. If you're on Intel, use `/usr/local/bin/hs`.
-
-Now you can run:
-
-```bash
-hs
-```
-
-To reload the Hammerspoon configuration from the terminal.
+---
