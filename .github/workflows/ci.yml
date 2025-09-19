@@ -24,9 +24,18 @@ jobs:
 
       - name: Install dependencies
         run: |
+          luarocks install lua_cliargs
+          luarocks install luasystem
+          luarocks install dkjson
+          luarocks install say
+          luarocks install luassert
+          luarocks install lua-term
+          luarocks install penlight
+          luarocks install luafilesystem
+          luarocks install mediator_lua
           luarocks install busted
+          luarocks install datafile
           luarocks install luacov
-          luarocks install markdownlint-cli
 
       - name: Run unit and integration tests
         run: |
