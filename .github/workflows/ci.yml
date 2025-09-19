@@ -50,3 +50,6 @@ jobs:
       - name: Lint Markdown
         run: |
           npx markdownlint-cli '**/*.md'
+
+      - name: Run luacheck lint
+        run: luacheck modules
