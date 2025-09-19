@@ -18,3 +18,8 @@ repos:
         entry: luacheck modules
         language: system
         types: [lua]
+      - id: markdownlint
+        name: Lint Markdown
+        entry: npx markdownlint-cli '**/*.md'
+        language: system
+        types: [markdown]
