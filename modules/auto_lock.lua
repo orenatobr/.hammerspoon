@@ -1,7 +1,5 @@
 -- luacheck: globals hs
 -- luacheck: max line length 120
--- ~/.hammerspoon/modules/lid_control.lua
--- Locks the screen on lid close. No Bluetooth toggling.
 local M = {}
 
 -- ===== Config =====
@@ -20,7 +18,7 @@ local function internalDisplayPresent()
         local nm = (s:name() or ""):lower()
         for _, pat in ipairs(INTERNAL_HINTS) do
             -- Module: auto_lock
-            -- Purpose: Locks the screen when the internal display (laptop lid) is closed. No Bluetooth toggling.
+            -- Purpose: Locks the screen when the internal display (laptop lid) is closed.
             -- Usage: require this module and call M.start() to enable auto lock on lid close.
             -- Author: [Your Name]
             -- Last updated: 2025-09-19
@@ -80,7 +78,7 @@ function M.start()
         M._screenWatcher = hs.screen.watcher.new(onScreensChanged)
         M._screenWatcher:start()
         lastInternalPresent = internalDisplayPresent()
-        print("✅ lid_control started (lock on lid close; no Bluetooth)")
+    print("✅ lid_control started (lock on lid close)")
     end
 end
 

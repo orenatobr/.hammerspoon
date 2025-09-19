@@ -4,12 +4,13 @@
     {
       "label": "Reload Hammerspoon Config",
       "type": "shell",
-      "command": "hs",
+      "command": "open -g -a 'Hammerspoon' --args -r",
       "args": [],
       "problemMatcher": [],
       "presentation": {
         "echo": true,
-        "reveal": "never",
+        "reveal": "always",
+        "focus": false,
         "panel": "shared"
       }
     }
