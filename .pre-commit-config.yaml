@@ -1,9 +1,20 @@
 repos:
-
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+
+  - repo: local
+    hooks:
+      - id: busted-tests
+        name: Run busted tests
+        entry: busted tests/ --pattern='test_.*.lua'
+        language: system
+        types: [lua]
+      - id: luacheck-lint
+        name: Run luacheck lint
+        entry: luacheck modules
+        language: system
+        types: [lua]

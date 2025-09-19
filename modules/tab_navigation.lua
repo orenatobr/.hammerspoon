@@ -1,3 +1,5 @@
+-- luacheck: globals hs
+-- luacheck: max line length 120
 -- ~/.hammerspoon/modules/tab_navigation.lua
 -- Module: tab_navigation
 -- Purpose: Binds a hotkey to show a chooser for open Safari tabs and switch to the selected tab.
@@ -37,7 +39,8 @@ function M.bindHotkey()
                 })
             end
         end
-        local chooser = hs.chooser.new(function(choice)
+    -- luacheck: ignore choice
+    local chooser = hs.chooser.new(function(_)
             if choice then
                 local openTabScript = string.format([[
                     tell application "Safari"

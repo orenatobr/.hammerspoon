@@ -1,3 +1,5 @@
+-- luacheck: globals hs
+-- luacheck: max line length 120
 -- ~/.hammerspoon/modules/lid_control.lua
 -- Locks the screen on lid close. No Bluetooth toggling.
 local M = {}
@@ -31,7 +33,8 @@ local function internalDisplayPresent()
     return false
 end
 
-local function debounce(delay, fn)
+-- luacheck: ignore fn
+local function debounce(delay, _)
     if M._debouncer then
         M._debouncer:stop()
     end

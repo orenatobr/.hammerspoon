@@ -1,3 +1,5 @@
+-- luacheck: globals hs
+-- luacheck: max line length 120
 -- ~/.hammerspoon/modules/teams_focus_restore.lua
 -- Module: teams_focus_restore
 -- Purpose: Restores focus to the last useful Teams window when Teams is activated.
@@ -42,7 +44,8 @@ local function handleAppActivated()
 end
 
 --- Handles Teams activation only.
-local function appEventHandler(app, eventType, appObj)
+-- luacheck: ignore appObj
+local function appEventHandler(app, eventType, _)
     if app == appName and eventType == hs.application.watcher.activated then
         if not windowFilter then
             createWindowFilter()

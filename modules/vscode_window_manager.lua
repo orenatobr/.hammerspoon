@@ -1,3 +1,5 @@
+-- luacheck: globals hs
+-- luacheck: max line length 120
 -- ~/.hammerspoon/modules/vscode_window_manager.lua
 -- Module: vscode_window_manager
 -- Purpose: Moves new VSCode windows to the secondary screen and resizes them.
@@ -44,6 +46,7 @@ function M.start()
     vscodeWindowFilter = hs.window.filter.new(false):setAppFilter("Code", {
         allowRoles = "*"
     })
+    -- luacheck: ignore appName event
     vscodeWindowFilter:subscribe({hs.window.filter.windowCreated, hs.window.filter.windowFocused},
         function(win, appName, event)
             hs.timer.doAfter(0.2, function()

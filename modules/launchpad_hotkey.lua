@@ -1,3 +1,5 @@
+-- luacheck: globals hs
+-- luacheck: max line length 120
 -- ~/.hammerspoon/modules/launchpad_hotkey.lua
 -- Module: launchpad_hotkey
 -- Purpose: Binds a hotkey to open Launchpad or Apps, using path or name fallback.

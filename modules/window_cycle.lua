@@ -1,13 +1,8 @@
--- ~/.hammerspoon/modules/window_cycle.lua
--- Module: window_cycle
--- Purpose: Binds a hotkey to cycle through open windows of the frontmost app (Alt+C).
--- Usage: require this module and call M.bindHotkey() to enable Alt+C for window cycling.
--- Author: [Your Name]
--- Last updated: 2025-09-19
+-- luacheck: globals hs
+-- luacheck: max line length 120
 
 local M = {}
 
---- Binds Alt+C to cycle through open windows of the frontmost app.
 function M.bindHotkey()
     hs.hotkey.bind({"alt"}, "C", function()
         local app = hs.application.frontmostApplication()

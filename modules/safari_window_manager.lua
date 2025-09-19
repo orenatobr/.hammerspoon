@@ -1,3 +1,5 @@
+-- luacheck: globals hs
+-- luacheck: max line length 120
 -- ~/.hammerspoon/modules/safari_window_manager.lua
 -- Module: safari_window_manager
 -- Purpose: Moves new Safari windows to the secondary screen and resizes them.
@@ -45,7 +47,7 @@ function M.start()
     safariWindowFilter = hs.window.filter.new(false):setAppFilter("Safari", {
         allowRoles = "*"
     })
-    safariWindowFilter:subscribe({hs.window.filter.windowCreated}, function(win, appName, event)
+    safariWindowFilter:subscribe({hs.window.filter.windowCreated}, function(win, _, _)
         hs.timer.doAfter(0.2, function()
             moveSafariWindow(win)
         end)

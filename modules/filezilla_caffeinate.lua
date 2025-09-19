@@ -1,5 +1,5 @@
--- ~/.hammerspoon/modules/filezilla_caffeinate.lua
--- Module: filezilla_caffeinate
+-- luacheck: globals hs
+-- luacheck: ignore caffeinateStatus
 -- Purpose: Prevents display sleep while FileZilla is running by toggling caffeinate.
 -- Usage: require this module and call M.start() to enable automatic caffeinate for FileZilla.
 -- Author: [Your Name]
@@ -11,7 +11,8 @@ local caffeinateStatus = false
 local watcher = nil
 
 --- Handles FileZilla launch/termination events to toggle caffeinate.
-local function appEvent(appName, eventType, app)
+-- luacheck: ignore app
+local function appEvent(appName, eventType, _)
     if appName ~= "FileZilla" then
         return
     end

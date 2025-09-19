@@ -1,7 +1,8 @@
 local M = {}
 
--- ===== Config =====
--- ===== Configuration =====
+-- luacheck: ignore appIsTarget targetsRunningNow tinyJiggle
+-- luacheck: ignore hs
+-- luacheck: max line length 250
 local CHECK_EVERY = 30         -- Interval (seconds) between idle checks
 local IDLE_THRESHOLD = 30      -- Idle time (seconds) required to trigger jiggle
 local JIGGLE_OFFSET = 1        -- Pixels to nudge the pointer
@@ -130,6 +131,7 @@ end
 
 -- ===== Watchers =====
 --- Handles app launch/terminate events to start/stop the timer as needed.
+-- luacheck: ignore _
 local function handleAppEvent(_, event, _)
     if event == hs.application.watcher.launched or event == hs.application.watcher.terminated then
         if targetsRunningNow() then

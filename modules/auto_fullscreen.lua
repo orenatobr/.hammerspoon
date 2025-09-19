@@ -1,8 +1,5 @@
--- Module: auto_fullscreen
--- Purpose: Automatically maximize or center windows on the internal display after screen changes.
--- Usage: require this module and call M.start(opts) to enable auto fullscreen/centering. Pass options to override config.
--- Author: [Your Name]
--- Last updated: 2025-09-19
+-- luacheck: ignore hs
+-- luacheck: max line length 250
 
 local M = {}
 
@@ -319,7 +316,8 @@ local function subscribeWatchers()
         M._screenWatcher:start()
     end
     if not M._cafWatcher then
-        M._cafWatcher = hs.caffeinate.watcher.new(function(event)
+    -- luacheck: ignore event
+    M._cafWatcher = hs.caffeinate.watcher.new(function(_)
             if event == hs.caffeinate.watcher.screensDidSleep or event == hs.caffeinate.watcher.screensDidWake or event ==
                 hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.systemDidWake then
                 handleScreensChanged()

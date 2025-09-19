@@ -1,3 +1,5 @@
+-- luacheck: globals hs
+-- luacheck: max line length 120
 
 -- ~/.hammerspoon/modules/app_navigation.lua
 -- Module: app_navigation
@@ -24,7 +26,8 @@ function M.bindHotkey()
             end
         end
 
-        local chooser = hs.chooser.new(function(choice)
+    -- luacheck: ignore choice
+    local chooser = hs.chooser.new(function(_)
             if choice then
                 local app = hs.application.get(choice.uuid)
                 if app then

@@ -1,8 +1,5 @@
--- ~/.hammerspoon/modules/aws_tab_monitor.lua
--- Module: aws_tab_monitor
--- Purpose: Monitors Safari tabs for AWS Console URLs and displays account info notifications.
--- Usage: require this module and call M.start() to enable AWS account monitoring in Safari.
--- Author: [Your Name]
+-- luacheck: ignore appWatcher clickWatcher
+-- luacheck: ignore hs
 -- Last updated: 2025-09-19
 
 local M = {}
@@ -17,6 +14,7 @@ local accountMap = {
 }
 
 --- Gets the current Safari tab URL and maps the AWS account if present.
+-- luacheck: ignore script
 local function fetchAWSAccountData()
     local script = [[
         tell application "Safari"

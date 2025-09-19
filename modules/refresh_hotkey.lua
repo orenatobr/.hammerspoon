@@ -1,3 +1,5 @@
+-- luacheck: globals hs
+-- luacheck: max line length 120
 -- ~/.hammerspoon/modules/refresh_hotkey.lua
 -- Module: refresh_hotkey
 -- Purpose: Binds a hotkey to clear browser cache and reload the page (Alt+R).
@@ -9,7 +11,8 @@ local M = {}
 
 --- Binds Alt+R to clear browser cache and reload the page.
 function M.bindHotkey()
-    hs.hotkey.bind({"alt"}, "R", function()
+    -- luacheck: ignore _
+    hs.hotkey.bind({"alt"}, "R", function(_)
         -- Simulate Option + Command + E (Empty Cache)
         hs.eventtap.keyStroke({"alt", "cmd"}, "E")
         print("🧹 Cache cleared.")
