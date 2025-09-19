@@ -1,4 +1,6 @@
--- Unit tests for vscode_window_manager.lua
+
+-- luacheck: globals busted describe it assert
+-- luacheck: ignore busted
 local busted = require('busted')
 local vscode_window_manager = require('../modules/vscode_window_manager')
 

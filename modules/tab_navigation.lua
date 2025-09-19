@@ -39,8 +39,7 @@ function M.bindHotkey()
                 })
             end
         end
-    -- luacheck: ignore choice
-    local chooser = hs.chooser.new(function(_)
+    local chooser = hs.chooser.new(function(choice)
             if choice then
                 local openTabScript = string.format([[
                     tell application "Safari"

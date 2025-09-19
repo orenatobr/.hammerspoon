@@ -24,18 +24,6 @@ local _checkTimer = nil      -- Timer for periodic idle checks
 local _cafWatcher = nil      -- Caffeinate watcher for sleep/wake events
 local _busy = false          -- Prevents overlapping jiggle actions
 
-local function appIsTarget(app)
-    if not app then return false end
-    local name = app:name() or ""
-    local bundle = app:bundleID() or ""
-    for _, n in ipairs(M.config.app_names or {}) do
-        if name == n then return true end
-    end
-    for _, b in ipairs(M.config.bundle_ids or {}) do
-        if bundle == b then return true end
-    end
-    return false
-end
 --- Returns true if the given app matches any target name or bundle ID.
 local function appIsTarget(app)
     if not app then return false end
@@ -50,12 +38,6 @@ local function appIsTarget(app)
     return false
 end
 
-local function targetsRunningNow()
-    for _, app in ipairs(hs.application.runningApplications()) do
-        if appIsTarget(app) then return true end
-    end
-    return false
-end
 --- Returns true if any target app is currently running.
 local function targetsRunningNow()
     for _, app in ipairs(hs.application.runningApplications()) do
@@ -64,19 +46,6 @@ local function targetsRunningNow()
     return false
 end
 
-local function tinyJiggle()
-    local p = hs.mouse.absolutePosition()
-    hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.mouseMoved, {
-        x = p.x + JIGGLE_OFFSET,
-        y = p.y + JIGGLE_OFFSET
-    }):post()
-    hs.timer.doAfter(JIGGLE_BACKOFF, function()
-        hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.mouseMoved, {
-            x = p.x,
-            y = p.y
-        }):post()
-    end)
-end
 --- Moves the mouse pointer by a small offset and returns it to its original position.
 local function tinyJiggle()
     local p = hs.mouse.absolutePosition()

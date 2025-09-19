@@ -25,7 +25,7 @@ function M.bindHotkey()
             end
         end
         windows[nextIndex]:raise():focus()
-        print("� Window switched.")
+    print("🪟 Window switched.")
     end)
 end
 

@@ -26,8 +26,7 @@ function M.bindHotkey()
             end
         end
 
-    -- luacheck: ignore choice
-    local chooser = hs.chooser.new(function(_)
+    local chooser = hs.chooser.new(function(choice)
             if choice then
                 local app = hs.application.get(choice.uuid)
                 if app then

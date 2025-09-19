@@ -1,4 +1,6 @@
--- Mock Hammerspoon global for CI
+
+-- luacheck: globals hs busted describe it assert
+-- luacheck: ignore busted
 _G.hs = _G.hs or {}
 hs.caffeinate = hs.caffeinate or {}
 hs.timer = hs.timer or {}

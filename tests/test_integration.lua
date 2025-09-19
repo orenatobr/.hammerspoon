@@ -1,4 +1,6 @@
--- Integration test example: load multiple modules and check basic interaction
+-- luacheck: globals busted describe it assert
+-- luacheck: ignore busted
+require('tests.test_hs_mock')
 local busted = require('busted')
 local app_navigation = require('../modules/app_navigation')
 local window_cycle = require('../modules/window_cycle')

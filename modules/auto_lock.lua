@@ -1,7 +1,5 @@
 -- luacheck: globals hs
--- luacheck: max line length 120
 local M = {}
-
 -- ===== Config =====
 local OPEN_DELAY = 1.0 -- wait after lid open (for stability/logs only)
 local CLOSE_DELAY = 0.4 -- wait after lid close before locking
@@ -17,11 +15,6 @@ local function internalDisplayPresent()
     for _, s in ipairs(hs.screen.allScreens()) do
         local nm = (s:name() or ""):lower()
         for _, pat in ipairs(INTERNAL_HINTS) do
-            -- Module: auto_lock
-            -- Purpose: Locks the screen when the internal display (laptop lid) is closed.
-            -- Usage: require this module and call M.start() to enable auto lock on lid close.
-            -- Author: [Your Name]
-            -- Last updated: 2025-09-19
 
             if nm:match(pat) then
                 return true
