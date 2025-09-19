@@ -39,7 +39,7 @@ jobs:
 
       - name: Run unit and integration tests
         run: |
-          busted tests/
+          busted tests/ --pattern='test_.*.lua'
 
       - name: Run coverage
         run: |
