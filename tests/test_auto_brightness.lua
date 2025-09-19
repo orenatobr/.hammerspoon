@@ -5,6 +5,10 @@ hs.application = hs.application or {}
 hs.screen = hs.screen or {}
 hs.brightness = hs.brightness or {}
 hs.timer = hs.timer or {}
+hs.battery = hs.battery or {
+    currentCapacity = function() return 100 end,
+    isCharging = function() return true end
+}
 
 -- Unit tests for auto_brightness.lua
 local busted = require('busted')
