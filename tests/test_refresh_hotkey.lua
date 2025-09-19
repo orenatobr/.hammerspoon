@@ -1,3 +1,8 @@
+-- Mock Hammerspoon global for CI
+_G.hs = _G.hs or {}
+hs.hotkey = hs.hotkey or {}
+hs.application = hs.application or {}
+
 -- Unit tests for refresh_hotkey.lua
 local busted = require('busted')
 local refresh_hotkey = require('../modules/refresh_hotkey')

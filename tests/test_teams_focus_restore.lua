@@ -1,3 +1,17 @@
+-- Mock Hammerspoon global for CI
+_G.hs = _G.hs or {}
+hs.window = hs.window or {}
+hs.application = hs.application or {}
+hs.timer = hs.timer or {}
+hs.window.filter = hs.window.filter or {
+    new = function()
+        return {
+            subscribe = function() end,
+            unsubscribeAll = function() end
+        }
+    end
+}
+
 -- Unit tests for teams_focus_restore.lua
 local busted = require('busted')
 local teams_focus_restore = require('../modules/teams_focus_restore')

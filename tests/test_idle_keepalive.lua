@@ -1,3 +1,8 @@
+-- Mock Hammerspoon global for CI
+_G.hs = _G.hs or {}
+hs.timer = hs.timer or {}
+hs.caffeinate = hs.caffeinate or {}
+
 -- Unit tests for idle_keepalive.lua
 local busted = require('busted')
 local idle_keepalive = require('../modules/idle_keepalive')

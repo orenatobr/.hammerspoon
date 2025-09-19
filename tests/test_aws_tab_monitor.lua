@@ -1,3 +1,9 @@
+-- Mock Hammerspoon global for CI
+_G.hs = _G.hs or {}
+hs.window = hs.window or {}
+hs.application = hs.application or {}
+hs.timer = hs.timer or {}
+
 -- Unit tests for aws_tab_monitor.lua
 local busted = require('busted')
 local aws_tab_monitor = require('../modules/aws_tab_monitor')
