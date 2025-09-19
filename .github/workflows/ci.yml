@@ -43,7 +43,7 @@ jobs:
 
       - name: Run coverage
         run: |
-          busted --coverage tests
+          busted --coverage tests/ --pattern='test_.*.lua'
           luacov
           cat luacov.report.out
 
