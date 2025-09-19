@@ -1,20 +1,56 @@
 # Hammerspoon Productivity Toolkit
 
 Automations and hotkeys for macOS using [Hammerspoon](https://www.hammerspoon.org/).
-This config provides advanced window management, app-aware automations, presence helpers, and productivity shortcuts for common macOS workflows.
 
 > On load you should see: `✅ Hammerspoon Productivity Toolkit initialized.` and an alert “🎉 All automations active”.
 
-## Contents
+## How to Install Hammerspoon
 
-- [Features](#features)
-- [Requirements and Environment Preparation](#requirements-and-environment-preparation)
-- [Hotkeys](#hotkeys)
-- [Modules](#modules)
-- [Configuration and Troubleshooting](#configuration-and-troubleshooting)
-- [Repository Structure](#repository-structure)
-- [Optional CLI Integration](#optional-cli-integration)
-- [Development & Pre-commit Environment Setup](#development--pre-commit-environment-setup)
+1. Go to the official website: [hammerspoon.org](https://www.hammerspoon.org/)
+2. Download the latest release for macOS.
+3. Open the downloaded `.zip` file and drag **Hammerspoon.app** to your **Applications** folder.
+4. Launch Hammerspoon from Applications.
+5. Grant Accessibility permissions when prompted (System Settings → Privacy & Security → Accessibility → enable Hammerspoon).
+6. (Optional) Add Hammerspoon to your Dock or set it to launch at login for convenience.
+
+For more details, see the [Getting Started guide](https://www.hammerspoon.org/go/).
+
+## Requirements and Environment Preparation
+
+### System
+
+- **macOS** (latest recommended)
+- **Hammerspoon** (latest from [hammerspoon.org](https://www.hammerspoon.org/))
+
+### Permissions
+
+- **Accessibility**: Required for window control, key events, and mouse automation.
+  - Go to **System Settings → Privacy & Security → Accessibility** and enable **Hammerspoon**.
+- **Automation**: May prompt when Hammerspoon uses AppleScript/Shortcuts.
+
+### Apps
+
+- **Safari** (for tab switcher, AWS detector)
+- **Visual Studio Code** (for window placement)
+- **Microsoft Teams** (for presence keep-alive, focus restore)
+- **FileZilla** (for caffeinate)
+
+### Recommended Preparation Steps
+
+1. **Install Hammerspoon** and open it once to grant permissions.
+2. **Clone this repo** into your Hammerspoon directory:
+
+   ```bash
+   git clone git@github.com:orenatobr/.hammerspoon.git
+   ```
+
+   _(Or copy the files there.)_
+3. **Reload the config**:
+   - Hammerspoon menu → **Reload Config**, or
+   - `hs.reload()` from the Hammerspoon console.
+4. **Grant Accessibility permissions** (see above).
+5. **(Optional) Prepare Apple Shortcuts** for Bluetooth automation.
+6. **(Optional) Install recommended apps** for full feature coverage.
 
 ## Features
 
@@ -40,45 +76,6 @@ This config provides advanced window management, app-aware automations, presence
 
 - Modular design: Each feature is a separate Lua module for easy customization.
 - Hotkeys and app lists are easily configurable.
-
-## Requirements and Environment Preparation
-
-### System
-
-- **macOS** (latest recommended)
-- **Hammerspoon** (latest from [hammerspoon.org](https://www.hammerspoon.org/))
-
-### Permissions
-
-- **Accessibility**: Required for window control, key events, and mouse automation.
-  - Go to **System Settings → Privacy & Security → Accessibility** and enable **Hammerspoon**.
-- **Automation**: May prompt when Hammerspoon uses AppleScript/Shortcuts.
-
-### Apps
-
-- **Safari** (for tab switcher, AWS detector)
-- **Visual Studio Code** (for window placement)
-- **Microsoft Teams** (for presence keep-alive, focus restore)
-- **FileZilla** (for caffeinate)
-- **Apple Shortcuts** (optional, for Bluetooth automation)
-  - Create Shortcuts named **“Bluetooth On”** and **“Bluetooth Off”**
-
-### Recommended Preparation Steps
-
-1. **Install Hammerspoon** and open it once to grant permissions.
-2. **Clone this repo** into your Hammerspoon directory:
-
-   ```bash
-   git clone git@github.com:orenatobr/.hammerspoon.git
-   ```
-
-   _(Or copy the files there.)_
-3. **Reload the config**:
-   - Hammerspoon menu → **Reload Config**, or
-   - `hs.reload()` from the Hammerspoon console.
-4. **Grant Accessibility permissions** (see above).
-5. **(Optional) Prepare Apple Shortcuts** for Bluetooth automation.
-6. **(Optional) Install recommended apps** for full feature coverage.
 
 ## Hotkeys
 
@@ -239,5 +236,3 @@ To run all pre-commit hooks (lint, tests, markdown checks) locally:
 5. **Troubleshooting**
    - If you see errors about missing commands, ensure you installed all dependencies above.
    - For markdownlint line length errors, see `.markdownlint.json` to adjust rules.
-
----
