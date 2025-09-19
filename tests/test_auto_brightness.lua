@@ -9,6 +9,9 @@ hs.battery = hs.battery or {}
 hs.battery.currentCapacity = hs.battery.currentCapacity or function() return 100 end
 hs.battery.isCharging = hs.battery.isCharging or function() return true end
 hs.battery.powerSource = hs.battery.powerSource or function() return "AC Power" end
+hs.battery.watcher = hs.battery.watcher or {
+    new = function() return { start = function() end, stop = function() end } end
+}
 
 -- Unit tests for auto_brightness.lua
 local busted = require('busted')
