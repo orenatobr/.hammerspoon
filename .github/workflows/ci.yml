@@ -37,6 +37,9 @@ jobs:
           luarocks install datafile
           luarocks install luacov
 
+      - name: Install luacheck
+        run: luarocks install luacheck
+
       - name: Run unit and integration tests
         run: |
           busted tests/ --pattern='test_.*.lua'
