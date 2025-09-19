@@ -177,24 +177,24 @@ hs
 
 To reload the Hammerspoon configuration from the terminal.
 
-- **`modules/teams_focus_restore.lua`**  
+- **`modules/teams_focus_restore.lua`**
   Tracks the **last useful** Teams window (standard window with non-empty title). On Teams activation, re-focuses that window so you don’t land on an empty/splash window.
 
-- **`modules/filezilla_caffeinate.lua`**  
+- **`modules/filezilla_caffeinate.lua`**
   Watches FileZilla. When launched, enables `hs.caffeinate.set("displayIdle", true)` and shows a toast (“Display won’t sleep”). On quit, disables and clears the alert.
 
-- **`modules/auto_lock.lua`**  
+- **`modules/auto_lock.lua`**
   Monitors **lid state** and triggers Apple Shortcuts to toggle Bluetooth accordingly (tries Shortcuts Events via AppleScript → CLI → URL scheme). Includes polling logic, helpful if system events don’t fire reliably.
 
-- **`init.lua`**  
+- **`init.lua`**
   Requires all modules, starts watchers (Auto Brightness, AWS, Safari/VSCode managers, Teams watchers, FileZilla caffeinate, Auto-Lock), and binds hotkeys.
 
 ## Configuration
 
-- **Change hotkeys**  
+- **Change hotkeys**
   Edit the `hs.hotkey.bind` calls inside each module.
 
-- **AWS account mapping** (`modules/aws_tab_monitor.lua`)  
+- **AWS account mapping** (`modules/aws_tab_monitor.lua`)
   Update the `accountMap` table:
 
   ```lua
@@ -207,17 +207,17 @@ To reload the Hammerspoon configuration from the terminal.
   }
   ```
 
-- **Teams app name** (`modules/teams_focus_restore.lua`)  
+- **Teams app name** (`modules/teams_focus_restore.lua`)
   If you use a variant (e.g., “Microsoft Teams (work or school)”), adjust:
 
   ```lua
   local appName = "Microsoft Teams"
   ```
 
-- **Bluetooth Shortcuts** (`modules/auto_lock.lua`)  
+- **Bluetooth Shortcuts** (`modules/auto_lock.lua`)
   Make sure you have Apple Shortcuts named exactly **“Bluetooth On”** and **“Bluetooth Off”**, or change the module to match your shortcut names.
 
-- **Window placement**  
+- **Window placement**
   The Safari/VS Code managers act only when at least two displays exist. If you prefer a specific display or geometry, tweak those modules (use `hs.screen.allScreens()` and `hs.geometry` helpers).
 
 ## Troubleshooting
