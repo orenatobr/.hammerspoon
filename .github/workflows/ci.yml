@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Lua
+        uses: leafo/gh-actions-lua@v9
+        with:
+          luaVersion: '5.3'
+
+      - name: Install LuaRocks
+        uses: leafo/gh-actions-luarocks@v4
+
+      - name: Install dependencies
+        run: |
+          luarocks install busted
+          luarocks install luacov
+          luarocks install markdownlint-cli
+
+      - name: Run unit and integration tests
+        run: |
+          busted tests
+
+      - name: Run coverage
+        run: |
+          busted --coverage tests
+          luacov
+          cat luacov.report.out
+
+      - name: Lint Markdown
+        run: |
+          npx markdownlint-cli '**/*.md'
