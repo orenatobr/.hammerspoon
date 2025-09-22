@@ -41,12 +41,11 @@ jobs:
 
       - name: Run unit and integration tests
         run: |
-          busted tests/ --pattern='test_.*.lua'
+          busted --coverage tests/ --pattern='test_.*.lua'
 
       - name: Run coverage
         run: |
-          busted --coverage tests/ --pattern='test_.*.lua'
-          luacov
+          luacov modules/ --pattern='*.lua'
           cat luacov.report.out
 
       - name: Lint Markdown

@@ -10,7 +10,12 @@ repos:
     hooks:
       - id: busted-tests
         name: Run busted tests
-        entry: busted tests/ --pattern='test_.*.lua'
+        entry: busted --coverage tests/ --pattern='test_.*.lua'
+        language: system
+        types: [lua]
+      - id: busted-coverage
+        name: Run busted coverage
+        entry: luacov modules/ --pattern='*.lua' && cat luacov.report.out
         language: system
         types: [lua]
       - id: luacheck-lint
