@@ -1,10 +1,7 @@
--- luacheck: ignore appWatcher clickWatcher
--- luacheck: ignore hs
--- Last updated: 2025-09-19
-
+-- luacheck: globals hs
 local M = {}
-
-local lastAWSUrl = nil
+local pollTimer = nil
+local lastTabUrl = nil
 local accountMap = {
     ["376714490571"] = "🔵 fsm-preprod",
     ["074882943170"] = "🟡 fsm-int",
@@ -13,9 +10,7 @@ local accountMap = {
     ["816634016139"] = "🔴 fsm-prod"
 }
 
---- Gets the current Safari tab URL and maps the AWS account if present.
--- luacheck: ignore script
-local function fetchAWSAccountData()
+local function getCurrentAWSTab()
     local script = [[
         tell application "Safari"
             if (count of windows) = 0 then return "NO_WINDOW"
@@ -29,61 +24,44 @@ local function fetchAWSAccountData()
         return nil, nil
     end
     if not url:find("console.aws.amazon.com") then
-        return url, nil
+        return nil, nil
     end
     local accountId = string.match(url, "https://(%d+)[%-%.]")
-    if not accountId then
-        return url, "Unknown"
-    end
-    return url, accountMap[accountId] or "Unknown"
+    return accountId, url
 end
 
---- Checks the current AWS account and shows a notification if changed.
-local function checkAWSAccount()
-    local url, label = fetchAWSAccountData()
-    if not url then
-        return
-    end
-    if label then
-        -- URL is from AWS, only notify if different from the last seen AWS URL
-        if url ~= lastAWSUrl then
-            hs.alert.closeAll()
-            hs.alert.show("🧭 AWS Account: " .. label)
-            print("🧭 AWS Account: " .. label)
-            lastAWSUrl = url
-        end
-    else
-        -- Non-AWS URL: reset last seen AWS URL to allow future re-notification
-        lastAWSUrl = nil
+local function showAWSAccount()
+    local accountId, url = getCurrentAWSTab()
+    if not accountId or not url then return end
+    if url ~= lastTabUrl then
+        local label = accountMap[accountId] or "Unknown"
+        hs.alert.closeAll()
+        hs.alert.show("🧭 AWS Account: " .. label)
+        print("🧭 AWS Account: " .. label)
+        lastTabUrl = url
     end
 end
 
 function M.start()
     print("🧪 AWS Account Monitor started")
-    -- Example: poll every 10 seconds
-    if not M._timer then
-        M._timer = hs.timer.doEvery(10, checkAWSAccount)
+    if not pollTimer then
+        pollTimer = hs.timer.doEvery(0.5, function()
+            local safari = hs.application.find("Safari")
+            if safari and safari:isFrontmost() then
+                showAWSAccount()
+            else
+                lastTabUrl = nil
+            end
+        end)
     end
 end
 
 function M.stop()
-    if M._timer then
-        M._timer:stop()
-        M._timer = nil
+    if pollTimer then
+        pollTimer:stop()
+        pollTimer = nil
     end
-    print("🛑 AWS Account Monitor stopped")
-end
-
--- Stops the watchers
-function M.stop()
-    if appWatcher then
-        appWatcher:stop()
-        appWatcher = nil
-    end
-    if clickWatcher then
-        clickWatcher:stop()
-        clickWatcher = nil
-    end
+    lastTabUrl = nil
     print("🛑 AWS Account Monitor stopped")
 end
 
