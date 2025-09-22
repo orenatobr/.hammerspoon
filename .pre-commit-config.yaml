@@ -15,7 +15,10 @@ repos:
         types: [lua]
       - id: busted-coverage
         name: Run busted coverage
-        entry: luacov modules/ --pattern='*.lua' && cat luacov.report.out
+        entry: |
+          luacov --pattern='modules/*.lua' \
+          && grep '^modules/.*[0-9]%$' luacov.report.out \
+          | awk '{hits+=$2; missed+=$3} END {printf "Total Hits: %d\nTotal Missed: %d\nCoverage: %.2f%%\n", hits, missed, hits/(hits+missed)*100}'
         language: system
         types: [lua]
       - id: luacheck-lint

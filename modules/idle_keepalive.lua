@@ -26,9 +26,27 @@ local _busy = false          -- Prevents overlapping jiggle actions
 
 --- Returns true if the given app matches any target name or bundle ID.
 local function appIsTarget(app)
-    if not app then return false end
-    local name = app:name() or ""
-    local bundle = app:bundleID() or ""
+    if not app or (type(app) ~= "userdata" and type(app) ~= "table") then return false end
+    local name, bundle = "", ""
+    if type(app) == "userdata" then
+        if app.name and type(app.name) == "function" then
+            name = app:name()
+        end
+        if app.bundleID and type(app.bundleID) == "function" then
+            bundle = app:bundleID()
+        end
+    elseif type(app) == "table" then
+        if type(app.name) == "function" then
+            name = app.name()
+        else
+            name = app.name or ""
+        end
+        if type(app.bundleID) == "function" then
+            bundle = app.bundleID()
+        else
+            bundle = app.bundleID or ""
+        end
+    end
     for _, n in ipairs(M.config.app_names or {}) do
         if name == n then return true end
     end
@@ -37,6 +55,9 @@ local function appIsTarget(app)
     end
     return false
 end
+
+-- Expose for testing
+M._test_appIsTarget = appIsTarget
 
 --- Returns true if any target app is currently running.
 local function targetsRunningNow()

@@ -36,6 +36,8 @@ M.lastPowerSource = hs.battery.powerSource()
 -- luacheck: ignore source
 local function handlePowerEvent()
     local source = hs.battery.powerSource()
+    print("[DEBUG] hs.alert:", hs.alert, "hs.brightness:", hs.brightness)
+    print("[DEBUG] source:", source, "M.lastPowerSource:", M.lastPowerSource)
     if source ~= M.lastPowerSource then
         hs.alert.show("🔌 Power: " .. source)
         hs.brightness.set(source == "AC Power" and 100 or 50)
@@ -43,6 +45,9 @@ local function handlePowerEvent()
     end
     print("🔋 Power check → " .. source)
 end
+
+-- Expose for testing
+M._test_handlePowerEvent = handlePowerEvent
 
 --- Battery watcher instance (created once)
 M.watcher = hs.battery.watcher.new(handlePowerEvent)
