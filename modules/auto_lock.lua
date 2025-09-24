@@ -24,8 +24,7 @@ local function internalDisplayPresent()
     return false
 end
 
--- luacheck: ignore fn
-local function debounce(delay, _)
+local function debounce(delay, fn)
     if M._debouncer then
         M._debouncer:stop()
     end
@@ -71,7 +70,7 @@ function M.start()
         M._screenWatcher = hs.screen.watcher.new(onScreensChanged)
         M._screenWatcher:start()
         lastInternalPresent = internalDisplayPresent()
-    print("✅ lid_control started (lock on lid close)")
+        print("✅ auto_lock started (lock on lid close)")
     end
 end
 
@@ -84,7 +83,7 @@ function M.stop()
         M._debouncer:stop()
         M._debouncer = nil
     end
-    print("🛑 lid_control stopped")
+    print("🛑 auto_lock stopped")
 end
 
 return M

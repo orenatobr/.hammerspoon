@@ -133,14 +133,21 @@ local function handleAppEvent(_, event, _)
     end
 end
 
---- Handles system sleep/wake/lock events to pause/resume the timer.
+--- Handles system sleep/wake events to pause/resume the timer.
+--- Note: We continue running when screen is locked to prevent display dimming.
 local function handleCaffeinateEvent(e)
-    if e == hs.caffeinate.watcher.systemWillSleep or e == hs.caffeinate.watcher.screensDidSleep or e == hs.caffeinate.watcher.screensDidLock then
+    if e == hs.caffeinate.watcher.systemWillSleep or e == hs.caffeinate.watcher.screensDidSleep then
         stopTimer()
-    elseif e == hs.caffeinate.watcher.systemDidWake or e == hs.caffeinate.watcher.screensDidWake or e == hs.caffeinate.watcher.screensDidUnlock or e == hs.caffeinate.watcher.sessionDidBecomeActive then
+        print("💤 Idle keep-alive paused (system sleeping).")
+    elseif e == hs.caffeinate.watcher.systemDidWake or e == hs.caffeinate.watcher.screensDidWake then
         if targetsRunningNow() then
             startTimer()
+            print("🌅 Idle keep-alive resumed (system woke up).")
         end
+    elseif e == hs.caffeinate.watcher.screensDidLock then
+        print("🔒 Screen locked - idle keep-alive continues to prevent display dimming.")
+    elseif e == hs.caffeinate.watcher.screensDidUnlock then
+        print("🔓 Screen unlocked - idle keep-alive continues.")
     end
 end
 
