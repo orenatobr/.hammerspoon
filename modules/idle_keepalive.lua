@@ -1,14 +1,50 @@
+
+-- luacheck: globals hs
 local M = {}
 
--- luacheck: ignore appIsTarget targetsRunningNow tinyJiggle
--- luacheck: ignore hs
--- luacheck: max line length 250
-local CHECK_EVERY = 30         -- Interval (seconds) between idle checks
-local IDLE_THRESHOLD = 30      -- Idle time (seconds) required to trigger jiggle
-local JIGGLE_OFFSET = 1        -- Pixels to nudge the pointer
-local JIGGLE_BACKOFF = 0.08    -- Delay (seconds) between out-and-back movement
+local CHECK_EVERY = 30 -- Interval (seconds) between idle checks
+local JIGGLE_OFFSET = 1 -- Pixels to nudge the pointer
+local JIGGLE_BACKOFF = 0.08 -- Delay (seconds) between out-and-back movement
 
--- Mouse click functionality removed; only jiggle remains
+-- Target apps (names and/or bundle IDs). Match is OR between lists.
+M.config = {
+    app_names = {"Microsoft Teams", "Zoom", "Slack"},
+    bundle_ids = {"com.microsoft.teams2", "com.microsoft.teams"} -- new+classic Teams
+}
+
+local _lockedTimer = nil -- Timer for mouse movement when locked
+
+-- Fallback for test environments where hs is not defined
+if not hs then
+    local _hs = {}
+    _hs.application = {}
+    _hs.application.runningApplications = function() return {} end
+    _hs.mouse = {}
+    _hs.mouse.absolutePosition = function() return {x=0, y=0} end
+    _hs.eventtap = {}
+    _hs.eventtap.event = {}
+    _hs.eventtap.event.types = {mouseMoved=0}
+    _hs.eventtap.event.newMouseEvent = function() return {post=function() end} end
+    _hs.timer = {}
+    _hs.timer.doAfter = function(_, fn) fn() end
+    _hs.timer.new = function() return {start=function() end, stop=function() end} end
+    _hs.caffeinate = {}
+    _hs.caffeinate.set = function() end
+    rawset(_G, "hs", _hs)
+end
+hs.application = hs.application or {}
+hs.application.runningApplications = hs.application.runningApplications or function() return {} end
+hs.mouse = hs.mouse or {}
+hs.mouse.absolutePosition = hs.mouse.absolutePosition or function() return {x=0, y=0} end
+hs.eventtap = hs.eventtap or {}
+hs.eventtap.event = hs.eventtap.event or {}
+hs.eventtap.event.types = hs.eventtap.event.types or {mouseMoved=0}
+hs.eventtap.event.newMouseEvent = hs.eventtap.event.newMouseEvent or function() return {post=function() end} end
+hs.timer = hs.timer or {}
+hs.timer.doAfter = hs.timer.doAfter or function(_, fn) fn() end
+hs.timer.new = hs.timer.new or function() return {start=function() end, stop=function() end} end
+hs.caffeinate = hs.caffeinate or {}
+hs.caffeinate.set = hs.caffeinate.set or function() end
 
 -- Menubar click region and click-related constants removed
 
@@ -19,14 +55,13 @@ M.config = {
 }
 
 -- ===== Internals =====
-local _appWatcher = nil      -- Application watcher for target apps
-local _checkTimer = nil      -- Timer for periodic idle checks
-local _cafWatcher = nil      -- Caffeinate watcher for sleep/wake events
-local _busy = false          -- Prevents overlapping jiggle actions
+-- Removed unused variables: _appWatcher, _checkTimer, _cafWatcher, _busy
 
 --- Returns true if the given app matches any target name or bundle ID.
 local function appIsTarget(app)
-    if not app or (type(app) ~= "userdata" and type(app) ~= "table") then return false end
+    if not app or (type(app) ~= "userdata" and type(app) ~= "table") then
+        return false
+    end
     local name, bundle = "", ""
     if type(app) == "userdata" then
         if app.name and type(app.name) == "function" then
@@ -48,10 +83,14 @@ local function appIsTarget(app)
         end
     end
     for _, n in ipairs(M.config.app_names or {}) do
-        if name == n then return true end
+        if name == n then
+            return true
+        end
     end
     for _, b in ipairs(M.config.bundle_ids or {}) do
-        if bundle == b then return true end
+        if bundle == b then
+            return true
+        end
     end
     return false
 end
@@ -62,7 +101,9 @@ M._test_appIsTarget = appIsTarget
 --- Returns true if any target app is currently running.
 local function targetsRunningNow()
     for _, app in ipairs(hs.application.runningApplications()) do
-        if appIsTarget(app) then return true end
+        if appIsTarget(app) then
+            return true
+        end
     end
     return false
 end
@@ -82,127 +123,65 @@ local function tinyJiggle()
     end)
 end
 
--- Geometry and click helpers removed (no longer used)
+-- Moves the mouse every CHECK_EVERY seconds when locked and target app is open
 
--- Mouse click functions removed (no longer used)
+local function startLockedTimer()
+    if _lockedTimer then
+        return
+    end
 
---- Starts the periodic idle check timer.
-local function startTimer()
-    if _checkTimer then return end
-    _checkTimer = hs.timer.new(CHECK_EVERY, function()
-        if not targetsRunningNow() then
-            _checkTimer:stop()
-            _checkTimer = nil
-            print("🛑 Idle keep-alive timer stopped (no target apps).")
-            return
-        end
-
-        local idle = hs.host.idleTime()
-        if idle >= IDLE_THRESHOLD and not _busy then
-            _busy = true
+    local _caffeinateTask = nil
+    _lockedTimer = hs.timer.new(CHECK_EVERY, function()
+        if targetsRunningNow() then
+            hs.caffeinate.set('displayIdle', true, true)
+            hs.caffeinate.set('systemIdle', true, true)
             tinyJiggle()
-            hs.timer.doAfter(JIGGLE_BACKOFF, function()
-                _busy = false
-                print("🖱️ Keep-alive: jiggle only (no click)")
-            end)
+            print("🖱️ Locked keep-alive: jiggle + display & system sleep prevention")
+            if hs.task and hs.task.new then
+                if not _caffeinateTask then
+                    _caffeinateTask = hs.task.new("/usr/bin/caffeinate", nil, {"-d", "-i"})
+                    _caffeinateTask:start()
+                    print("☕️ caffeinate process started to keep display/system awake.")
+                end
+            end
+        else
+            hs.caffeinate.set('displayIdle', false, true)
+            hs.caffeinate.set('systemIdle', false, true)
+            if _caffeinateTask and hs.task and hs.task.new then
+                _caffeinateTask:terminate()
+                _caffeinateTask = nil
+                print("☕️ caffeinate process stopped.")
+            end
+            _lockedTimer:stop()
+            _lockedTimer = nil
+            print("🛑 Locked keep-alive timer stopped (no target apps, sleep prevention off).")
         end
     end)
-    _checkTimer:start()
-    print(string.format("⏱️ Idle keep-alive timer started (every %ss, threshold %ss).", CHECK_EVERY, IDLE_THRESHOLD))
+    _lockedTimer:start()
+    local msg = "⏱️ Locked keep-alive timer started (every %ss, forced movement + sleep prevention)."
+    print(string.format(msg, CHECK_EVERY))
 end
 
---- Stops the idle check timer.
-local function stopTimer()
-    if _checkTimer then
-        _checkTimer:stop()
-        _checkTimer = nil
-    end
-end
+--- Starts the keepalive timer. Accepts optional config overrides.
 
--- ===== Watchers =====
---- Handles app launch/terminate events to start/stop the timer as needed.
--- luacheck: ignore _
-local function handleAppEvent(_, event, _)
-    if event == hs.application.watcher.launched or event == hs.application.watcher.terminated then
-        if targetsRunningNow() then
-            startTimer()
-        else
-            stopTimer()
-            print("🛑 Idle keep-alive paused (no target apps).")
-        end
-    end
-end
-
---- Handles system sleep/wake events to pause/resume the timer.
---- Note: We continue running when screen is locked to prevent display dimming.
-local function handleCaffeinateEvent(e)
-    if e == hs.caffeinate.watcher.systemWillSleep or e == hs.caffeinate.watcher.screensDidSleep then
-        stopTimer()
-        print("💤 Idle keep-alive paused (system sleeping).")
-    elseif e == hs.caffeinate.watcher.systemDidWake or e == hs.caffeinate.watcher.screensDidWake then
-        if targetsRunningNow() then
-            startTimer()
-            print("🌅 Idle keep-alive resumed (system woke up).")
-        end
-    elseif e == hs.caffeinate.watcher.screensDidLock then
-        -- Always keep timer running if target apps are open
-        if targetsRunningNow() then
-            startTimer()
-            print("🔒 Screen locked - idle keep-alive continues to prevent display dimming.")
-        else
-            stopTimer()
-            print("🔒 Screen locked - no target apps, idle keep-alive paused.")
-        end
-    elseif e == hs.caffeinate.watcher.screensDidUnlock then
-        if targetsRunningNow() then
-            startTimer()
-            print("🔓 Screen unlocked - idle keep-alive continues.")
-        else
-            stopTimer()
-            print("🔓 Screen unlocked - no target apps, idle keep-alive paused.")
-        end
-    end
-end
-
--- ===== Public API =====
---- Public API: Start the idle keepalive module.
--- Optionally override target app names/bundle IDs via opts table.
 function M.start(opts)
-    if type(opts) == "table" then
-        M.config.app_names = opts.app_names or M.config.app_names
-        M.config.bundle_ids = opts.bundle_ids or M.config.bundle_ids
+    opts = opts or {}
+    if opts.app_names then
+        M.config.app_names = opts.app_names
     end
-
-    if targetsRunningNow() then
-        startTimer()
+    if opts.bundle_ids then
+        M.config.bundle_ids = opts.bundle_ids
     end
-
-    if not _appWatcher then
-        _appWatcher = hs.application.watcher.new(handleAppEvent)
-        _appWatcher:start()
-    end
-    if not _cafWatcher then
-        _cafWatcher = hs.caffeinate.watcher.new(handleCaffeinateEvent)
-        _cafWatcher:start()
-    end
-
-    print(string.format("✅ idle_keepalive started. Watching %d names / %d bundle IDs.", #(M.config.app_names or {}), #(M.config.bundle_ids or {})))
+    startLockedTimer()
 end
 
--- Public API: Stop the idle keepalive module and clean up watchers/timers.
+--- Stops the keepalive timer and resets state.
 function M.stop()
-    if _appWatcher then
-        _appWatcher:stop()
-        _appWatcher = nil
+    if _lockedTimer then
+        _lockedTimer:stop()
+        _lockedTimer = nil
+        print("🛑 Locked keep-alive timer stopped by stop() call.")
     end
-    if _cafWatcher then
-        _cafWatcher:stop()
-        _cafWatcher = nil
-    end
-    stopTimer()
-    _busy = false
-    print("🛑 idle_keepalive stopped.")
 end
 
--- Return module table
 return M
