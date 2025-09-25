@@ -106,6 +106,7 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 - **`teams_mouse.lua`**: Keeps Teams presence active with mouse jiggle.
 - **`filezilla_caffeinate.lua`**: Prevents display sleep while FileZilla is running.
 - **`auto_lock.lua`**: Triggers Bluetooth Shortcuts on lid state changes.
+- **`safari_pip_detector.lua`**: Detects Safari Picture-in-Picture (PIP) window and automatically moves it to the bottom-left of the internal screen. Continuously monitors for the PIP window and repositions it for optimal visibility. Useful for keeping Safari PIP out of the way and always in a predictable location. Integrates with the main config and requires Accessibility permissions.
 - **`init.lua`**: Loads all modules and binds hotkeys.
 
 ## Configuration and Troubleshooting
