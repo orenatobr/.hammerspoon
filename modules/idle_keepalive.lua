@@ -145,9 +145,22 @@ local function handleCaffeinateEvent(e)
             print("🌅 Idle keep-alive resumed (system woke up).")
         end
     elseif e == hs.caffeinate.watcher.screensDidLock then
-        print("🔒 Screen locked - idle keep-alive continues to prevent display dimming.")
+        -- Always keep timer running if target apps are open
+        if targetsRunningNow() then
+            startTimer()
+            print("🔒 Screen locked - idle keep-alive continues to prevent display dimming.")
+        else
+            stopTimer()
+            print("🔒 Screen locked - no target apps, idle keep-alive paused.")
+        end
     elseif e == hs.caffeinate.watcher.screensDidUnlock then
-        print("🔓 Screen unlocked - idle keep-alive continues.")
+        if targetsRunningNow() then
+            startTimer()
+            print("🔓 Screen unlocked - idle keep-alive continues.")
+        else
+            stopTimer()
+            print("🔓 Screen unlocked - no target apps, idle keep-alive paused.")
+        end
     end
 end
 
