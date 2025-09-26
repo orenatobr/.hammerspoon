@@ -136,12 +136,13 @@ local function startLockedTimer()
             hs.caffeinate.set('displayIdle', true, true)
             hs.caffeinate.set('systemIdle', true, true)
             tinyJiggle()
-            print("🖱️ Locked keep-alive: jiggle + display & system sleep prevention")
+            print("🖱️ Locked keep-alive: jiggle + display & system sleep prevention + user activity")
             if hs.task and hs.task.new then
                 if not _caffeinateTask then
-                    _caffeinateTask = hs.task.new("/usr/bin/caffeinate", nil, {"-d", "-i"})
+                    -- Add -u flag to simulate user activity and prevent lock screen
+                    _caffeinateTask = hs.task.new("/usr/bin/caffeinate", nil, {"-d", "-i", "-u"})
                     _caffeinateTask:start()
-                    print("☕️ caffeinate process started to keep display/system awake.")
+                    print("☕️ caffeinate process started to keep display/system awake and prevent lock screen.")
                 end
             end
         else
