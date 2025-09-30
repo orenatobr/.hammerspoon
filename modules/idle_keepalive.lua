@@ -76,10 +76,66 @@ M.config = {
 }
 
 -- ===== Internals =====
--- Minimal targetsRunningNow for tests
+--- Returns true if the given app matches any target name or bundle ID.
+local function appIsTarget(app)
+    if not app or (type(app) ~= "userdata" and type(app) ~= "table") then return false end
+    local name, bundle = "", ""
+    if type(app) == "userdata" then
+        if app.name and type(app.name) == "function" then
+            name = app:name()
+        end
+        if app.bundleID and type(app.bundleID) == "function" then
+            bundle = app:bundleID()
+        end
+    elseif type(app) == "table" then
+        if type(app.name) == "function" then
+            name = app.name()
+        else
+            name = app.name or ""
+        end
+        if type(app.bundleID) == "function" then
+            bundle = app.bundleID()
+        else
+            bundle = app.bundleID or ""
+        end
+    end
+    for _, n in ipairs(M.config.app_names or {}) do
+        if name == n then return true end
+    end
+    for _, b in ipairs(M.config.bundle_ids or {}) do
+        if bundle == b then return true end
+    end
+    return false
+end
+
+--- Returns true if any target app is currently running.
 function M.targetsRunningNow()
-    -- For tests, just return true if any app_names or bundle_ids are set
-    return (M.config.app_names and #M.config.app_names > 0) or (M.config.bundle_ids and #M.config.bundle_ids > 0)
+    if not hs.application or not hs.application.runningApplications then
+        return false
+    end
+    for _, app in ipairs(hs.application.runningApplications()) do
+        if appIsTarget(app) then return true end
+    end
+    return false
+end
+
+-- Moves the mouse by a small offset and returns it to its original position
+function M.tinyJiggle()
+    local JIGGLE_OFFSET = 1
+    local JIGGLE_BACKOFF = 0.08
+
+    local p = hs.mouse.absolutePosition()
+    hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.mouseMoved, {
+        x = p.x + JIGGLE_OFFSET,
+        y = p.y + JIGGLE_OFFSET
+    }):post()
+
+    hs.timer.doAfter(JIGGLE_BACKOFF, function()
+        hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.mouseMoved, {
+            x = p.x,
+            y = p.y
+        }):post()
+    end)
 end
 
 -- Moves the mouse every CHECK_EVERY seconds when locked and target app is open
@@ -92,34 +148,45 @@ local function startLockedTimer()
     local _caffeinateTask = nil
     _lockedTimer = hs.timer.new(CHECK_EVERY, function()
         if M.targetsRunningNow() then
+            -- Prevent system sleep
             hs.caffeinate.set('displayIdle', true, true)
             hs.caffeinate.set('systemIdle', true, true)
+
+            -- Simulate mouse movement to prevent Teams away status
             M.tinyJiggle()
-            print("🖱️ Locked keep-alive: jiggle + display & system sleep prevention + user activity")
-            if hs.task and hs.task.new then
-                if not _caffeinateTask then
-                    -- Add -u flag to simulate user activity and prevent lock screen
-                    _caffeinateTask = hs.task.new("/usr/bin/caffeinate", nil, {"-d", "-i", "-u"})
-                    _caffeinateTask:start()
-                    print("☕️ caffeinate process started to keep display/system awake and prevent lock screen.")
+
+            -- Also simulate keyboard activity by posting a null key event
+            if hs.eventtap and hs.eventtap.event then
+                local nullKeyEvent = hs.eventtap.event.newKeyEvent({}, "", true)
+                if nullKeyEvent then
+                    nullKeyEvent:post()
                 end
             end
+
+            print("🖱️ Keep-alive: mouse jiggle + keyboard event + sleep prevention")
+
+            -- Start caffeinate process for additional protection
+            if hs.task and hs.task.new and not _caffeinateTask then
+                _caffeinateTask = hs.task.new("/usr/bin/caffeinate", nil, {"-d", "-i", "-u"})
+                _caffeinateTask:start()
+                print("☕️ caffeinate process started for additional protection")
+            end
         else
+            -- Clean up when no target apps are running
             hs.caffeinate.set('displayIdle', false, true)
             hs.caffeinate.set('systemIdle', false, true)
-            if _caffeinateTask and hs.task and hs.task.new then
+            if _caffeinateTask then
                 _caffeinateTask:terminate()
                 _caffeinateTask = nil
-                print("☕️ caffeinate process stopped.")
+                print("☕️ caffeinate process stopped")
             end
             _lockedTimer:stop()
             _lockedTimer = nil
-            print("🛑 Locked keep-alive timer stopped (no target apps, sleep prevention off).")
+            print("🛑 Keep-alive timer stopped (no target apps)")
         end
     end)
     _lockedTimer:start()
-    local msg = "⏱️ Locked keep-alive timer started (every %ss, forced movement + sleep prevention)."
-    print(string.format(msg, CHECK_EVERY))
+    print(string.format("⏱️ Keep-alive timer started (every %ss)", CHECK_EVERY))
 end
 
 --- Starts the keepalive timer. Accepts optional config overrides.
