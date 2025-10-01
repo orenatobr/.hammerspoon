@@ -17,7 +17,7 @@ M.config = {
 local _idleTimer = nil
 local _appWatcher = nil
 local _cafWatcher = nil
-local _screenLocked = false
+local _sleepPrevented = false
 
 -- ===== Helper Functions =====
 
@@ -88,26 +88,45 @@ local function moveMouseRandomly()
                        math.floor(newX), math.floor(newY)))
 end
 
+--- Enables sleep prevention
+local function enableSleepPrevention()
+    if not _sleepPrevented then
+        hs.caffeinate.set('displayIdle', true, true)
+        hs.caffeinate.set('systemIdle', true, true)
+        _sleepPrevented = true
+        print("☕️ Sleep prevention enabled")
+    end
+end
+
+--- Disables sleep prevention
+local function disableSleepPrevention()
+    if _sleepPrevented then
+        hs.caffeinate.set('displayIdle', false, true)
+        hs.caffeinate.set('systemIdle', false, true)
+        _sleepPrevented = false
+        print("😴 Sleep prevention disabled")
+    end
+end
+
 --- Main idle check function
 local function checkIdleTime()
     if not targetsRunningNow() then
+        disableSleepPrevention()
         return -- No target apps running, skip check
     end
 
     local idleTime = hs.host.idleTime()
 
     if idleTime >= IDLE_THRESHOLD then
-        -- User has been idle for more than threshold, move mouse
+        -- User has been idle for more than threshold
+        enableSleepPrevention()
         moveMouseRandomly()
-
-        -- Prevent display sleep when screen is locked
-        if _screenLocked then
-            hs.caffeinate.set('displayIdle', true, true)
-            print("🔒 Screen locked - preventing display sleep")
-        end
 
         print(string.format("⏰ Idle for %ds (threshold: %ds) - keeping active",
                            math.floor(idleTime), IDLE_THRESHOLD))
+    else
+        -- User is active, but keep sleep prevention on while target apps are running
+        enableSleepPrevention()
     end
 end
 
@@ -117,6 +136,7 @@ local function startIdleTimer()
 
     _idleTimer = hs.timer.new(CHECK_INTERVAL, checkIdleTime)
     _idleTimer:start()
+    enableSleepPrevention() -- Enable sleep prevention immediately
     print(string.format("⏱️ Idle keep-alive started (check every %ds, threshold %ds)",
                        CHECK_INTERVAL, IDLE_THRESHOLD))
 end
@@ -126,7 +146,7 @@ local function stopIdleTimer()
     if _idleTimer then
         _idleTimer:stop()
         _idleTimer = nil
-        hs.caffeinate.set('displayIdle', false, true) -- Re-enable display sleep
+        disableSleepPrevention() -- Disable sleep prevention
         print("⏹️ Idle keep-alive stopped")
     end
 end
@@ -147,17 +167,20 @@ end
 --- Handles system sleep/wake/lock events
 local function handleCaffeinateEvent(eventType)
     if eventType == hs.caffeinate.watcher.screensDidLock then
-        _screenLocked = true
-        print("🔒 Screen locked - idle keep-alive continues")
+        print("🔒 Screen locked - idle keep-alive continues, preventing system sleep")
 
     elseif eventType == hs.caffeinate.watcher.screensDidUnlock then
-        _screenLocked = false
-        hs.caffeinate.set('displayIdle', false, true) -- Re-enable normal display sleep
-        print("🔓 Screen unlocked")
+        print("🔓 Screen unlocked - idle keep-alive continues")
 
     elseif eventType == hs.caffeinate.watcher.systemWillSleep then
-        stopIdleTimer()
-        print("� System going to sleep - idle keep-alive paused")
+        -- Only allow sleep if no target apps are running
+        if targetsRunningNow() then
+            print("🚫 Preventing system sleep - target apps are running")
+            -- Keep the timer running and sleep prevention active
+        else
+            stopIdleTimer()
+            print("💤 System going to sleep - no target apps running")
+        end
 
     elseif eventType == hs.caffeinate.watcher.systemDidWake then
         if targetsRunningNow() then
@@ -218,7 +241,7 @@ function M.stop()
     end
 
     -- Reset state
-    _screenLocked = false
+    disableSleepPrevention()
 
     print("🛑 idle_keepalive stopped")
 end
