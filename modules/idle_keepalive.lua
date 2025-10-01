@@ -3,9 +3,9 @@
 local M = {}
 
 -- ===== Configuration =====
-local CHECK_INTERVAL = 5      -- Check idle time every 5 seconds
-local IDLE_THRESHOLD = 30     -- Trigger mouse movement after 30 seconds of idle
-local MOUSE_MOVE_RANGE = 50   -- Random movement within 50 pixels from current position
+local ACTIVITY_INTERVAL = 15  -- Simulate activity every 15 seconds (aggressive)
+local MOUSE_JIGGLE_PIXELS = 1  -- Tiny mouse movement (almost unnoticeable)
+local MAX_IDLE_TIME = 20       -- Never let system be idle more than 20 seconds
 
 -- Target apps (names and/or bundle IDs)
 M.config = {
@@ -14,10 +14,9 @@ M.config = {
 }
 
 -- ===== Internal State =====
-local _idleTimer = nil
+local _activityTimer = nil
 local _appWatcher = nil
 local _cafWatcher = nil
-local _sleepPrevented = false
 
 -- ===== Helper Functions =====
 
@@ -47,107 +46,87 @@ local function targetsRunningNow()
     return false
 end
 
---- Gets safe display boundaries for mouse movement
-local function getSafeDisplayBounds()
-    local screens = hs.screen.allScreens()
-    if #screens == 0 then return nil end
-
-    -- Use the main screen or first available screen
-    local screen = hs.screen.mainScreen() or screens[1]
-    local frame = screen:frame()
-
-    -- Add some padding to avoid edges
-    local padding = 50
-    return {
-        x = frame.x + padding,
-        y = frame.y + padding,
-        w = frame.w - (padding * 2),
-        h = frame.h - (padding * 2)
-    }
-end
-
---- Moves mouse to a random position within safe display bounds
-local function moveMouseRandomly()
-    local bounds = getSafeDisplayBounds()
-    if not bounds then return end
-
+--- Performs tiny mouse jiggle (almost invisible)
+local function performMouseJiggle()
     local currentPos = hs.mouse.absolutePosition()
 
-    -- Generate random position within MOUSE_MOVE_RANGE from current position
-    local deltaX = math.random(-MOUSE_MOVE_RANGE, MOUSE_MOVE_RANGE)
-    local deltaY = math.random(-MOUSE_MOVE_RANGE, MOUSE_MOVE_RANGE)
+    -- Move mouse by 1 pixel
+    hs.mouse.absolutePosition({
+        x = currentPos.x + MOUSE_JIGGLE_PIXELS,
+        y = currentPos.y
+    })
 
-    local newX = math.max(bounds.x, math.min(bounds.x + bounds.w, currentPos.x + deltaX))
-    local newY = math.max(bounds.y, math.min(bounds.y + bounds.h, currentPos.y + deltaY))
-
-    -- Move mouse to new position
-    hs.mouse.absolutePosition({x = newX, y = newY})
-
-    print(string.format("🖱️ Mouse moved randomly: (%d,%d) -> (%d,%d)",
-                       math.floor(currentPos.x), math.floor(currentPos.y),
-                       math.floor(newX), math.floor(newY)))
+    -- Move it back after a brief delay
+    hs.timer.doAfter(0.05, function()
+        hs.mouse.absolutePosition(currentPos)
+    end)
 end
 
---- Enables sleep prevention
-local function enableSleepPrevention()
-    if not _sleepPrevented then
-        hs.caffeinate.set('displayIdle', true, true)
-        hs.caffeinate.set('systemIdle', true, true)
-        _sleepPrevented = true
-        print("☕️ Sleep prevention enabled")
+--- Simulates keyboard activity (invisible key press)
+local function performKeyboardActivity()
+    -- Post a null key event that doesn't affect anything but registers activity
+    local event = hs.eventtap.event.newKeyEvent({}, "f24", true)
+    if event then
+        event:post()
+        -- Post key up event
+        hs.timer.doAfter(0.01, function()
+            local upEvent = hs.eventtap.event.newKeyEvent({}, "f24", false)
+            if upEvent then upEvent:post() end
+        end)
     end
 end
 
---- Disables sleep prevention
-local function disableSleepPrevention()
-    if _sleepPrevented then
-        hs.caffeinate.set('displayIdle', false, true)
-        hs.caffeinate.set('systemIdle', false, true)
-        _sleepPrevented = false
-        print("😴 Sleep prevention disabled")
-    end
-end
-
---- Main idle check function
-local function checkIdleTime()
+--- Main activity simulation function
+local function simulateActivity()
     if not targetsRunningNow() then
-        disableSleepPrevention()
-        return -- No target apps running, skip check
+        return -- No target apps running
     end
 
     local idleTime = hs.host.idleTime()
 
-    if idleTime >= IDLE_THRESHOLD then
-        -- User has been idle for more than threshold
-        enableSleepPrevention()
-        moveMouseRandomly()
+    -- Always prevent system/display sleep
+    hs.caffeinate.set('displayIdle', true, true)
+    hs.caffeinate.set('systemIdle', true, true)
 
-        print(string.format("⏰ Idle for %ds (threshold: %ds) - keeping active",
-                           math.floor(idleTime), IDLE_THRESHOLD))
-    else
-        -- User is active, but keep sleep prevention on while target apps are running
-        enableSleepPrevention()
+    -- If idle time is approaching the threshold, simulate activity
+    if idleTime >= MAX_IDLE_TIME then
+        -- Alternate between mouse and keyboard activity
+        if math.random() > 0.5 then
+            performMouseJiggle()
+            print(string.format("🖱️ Mouse jiggle (idle: %ds)", math.floor(idleTime)))
+        else
+            performKeyboardActivity()
+            print(string.format("⌨️ Keyboard activity (idle: %ds)", math.floor(idleTime)))
+        end
     end
 end
 
---- Starts the idle check timer
-local function startIdleTimer()
-    if _idleTimer then return end
+--- Starts the activity simulation timer
+local function startActivityTimer()
+    if _activityTimer then return end
 
-    _idleTimer = hs.timer.new(CHECK_INTERVAL, checkIdleTime)
-    _idleTimer:start()
-    enableSleepPrevention() -- Enable sleep prevention immediately
-    print(string.format("⏱️ Idle keep-alive started (check every %ds, threshold %ds)",
-                       CHECK_INTERVAL, IDLE_THRESHOLD))
+    _activityTimer = hs.timer.new(ACTIVITY_INTERVAL, simulateActivity)
+    _activityTimer:start()
+
+    -- Immediate sleep prevention
+    hs.caffeinate.set('displayIdle', true, true)
+    hs.caffeinate.set('systemIdle', true, true)
+
+    print(string.format("⏱️ Aggressive keep-alive started (activity every %ds, max idle %ds)",
+                       ACTIVITY_INTERVAL, MAX_IDLE_TIME))
 end
 
---- Stops the idle check timer
-local function stopIdleTimer()
-    if _idleTimer then
-        _idleTimer:stop()
-        _idleTimer = nil
-        disableSleepPrevention() -- Disable sleep prevention
-        print("⏹️ Idle keep-alive stopped")
+--- Stops the activity simulation timer
+local function stopActivityTimer()
+    if _activityTimer then
+        _activityTimer:stop()
+        _activityTimer = nil
+
+        -- Re-enable normal sleep behavior
+        hs.caffeinate.set('displayIdle', false, true)
+        hs.caffeinate.set('systemIdle', false, true)
+
+        print("⏹️ Aggressive keep-alive stopped")
     end
 end
 
@@ -157,9 +136,9 @@ local function handleAppEvent(_appName, eventType, _appObject)
        eventType == hs.application.watcher.terminated then
 
         if targetsRunningNow() then
-            startIdleTimer()
+            startActivityTimer()
         else
-            stopIdleTimer()
+            stopActivityTimer()
         end
     end
 end
@@ -167,32 +146,33 @@ end
 --- Handles system sleep/wake/lock events
 local function handleCaffeinateEvent(eventType)
     if eventType == hs.caffeinate.watcher.screensDidLock then
-        print("🔒 Screen locked - idle keep-alive continues, preventing system sleep")
+        print("🔒 Screen locked - aggressive keep-alive continues")
 
     elseif eventType == hs.caffeinate.watcher.screensDidUnlock then
-        print("🔓 Screen unlocked - idle keep-alive continues")
+        print("🔓 Screen unlocked - aggressive keep-alive continues")
 
     elseif eventType == hs.caffeinate.watcher.systemWillSleep then
-        -- Only allow sleep if no target apps are running
+        -- Aggressively prevent sleep when target apps are running
         if targetsRunningNow() then
-            print("🚫 Preventing system sleep - target apps are running")
-            -- Keep the timer running and sleep prevention active
+            print("🚫 BLOCKING system sleep - keeping apps available")
+            -- Force activity to prevent sleep
+            simulateActivity()
         else
-            stopIdleTimer()
-            print("💤 System going to sleep - no target apps running")
+            stopActivityTimer()
+            print("💤 Allowing system sleep - no target apps running")
         end
 
     elseif eventType == hs.caffeinate.watcher.systemDidWake then
         if targetsRunningNow() then
-            startIdleTimer()
-            print("🌅 System woke up - idle keep-alive resumed")
+            startActivityTimer()
+            print("🌅 System woke up - aggressive keep-alive resumed")
         end
     end
 end
 
 -- ===== Public API =====
 
---- Starts the idle keep-alive module
+--- Starts the aggressive keep-alive module
 function M.start(opts)
     opts = opts or {}
 
@@ -215,19 +195,19 @@ function M.start(opts)
         _cafWatcher:start()
     end
 
-    -- Start timer if target apps are already running
+    -- Start aggressive activity simulation if target apps are already running
     if targetsRunningNow() then
-        startIdleTimer()
+        startActivityTimer()
     end
 
-    print(string.format("✅ idle_keepalive started - monitoring %d apps",
+    print(string.format("✅ AGGRESSIVE idle_keepalive started - forcing %d apps to stay available",
                        #M.config.app_names + #M.config.bundle_ids))
 end
 
---- Stops the idle keep-alive module
+--- Stops the aggressive keep-alive module
 function M.stop()
-    -- Stop timer
-    stopIdleTimer()
+    -- Stop activity timer
+    stopActivityTimer()
 
     -- Stop watchers
     if _appWatcher then
@@ -240,10 +220,7 @@ function M.stop()
         _cafWatcher = nil
     end
 
-    -- Reset state
-    disableSleepPrevention()
-
-    print("🛑 idle_keepalive stopped")
+    print("🛑 AGGRESSIVE idle_keepalive stopped")
 end
 
 -- For testing
