@@ -62,17 +62,13 @@ local function performMouseJiggle()
     end)
 end
 
---- Simulates keyboard activity (invisible key press)
+--- Simulates keyboard activity using safer method
 local function performKeyboardActivity()
-    -- Post a null key event that doesn't affect anything but registers activity
-    local event = hs.eventtap.event.newKeyEvent({}, "f24", true)
-    if event then
-        event:post()
-        -- Post key up event
-        hs.timer.doAfter(0.01, function()
-            local upEvent = hs.eventtap.event.newKeyEvent({}, "f24", false)
-            if upEvent then upEvent:post() end
-        end)
+    -- Use scroll wheel event instead of problematic key events
+    -- This registers as user activity without affecting anything
+    local scrollEvent = hs.eventtap.event.newScrollEvent({0, 0}, {}, "pixel")
+    if scrollEvent then
+        scrollEvent:post()
     end
 end
 
@@ -96,7 +92,7 @@ local function simulateActivity()
             print(string.format("🖱️ Mouse jiggle (idle: %ds)", math.floor(idleTime)))
         else
             performKeyboardActivity()
-            print(string.format("⌨️ Keyboard activity (idle: %ds)", math.floor(idleTime)))
+            print(string.format("🛞 Scroll activity (idle: %ds)", math.floor(idleTime)))
         end
     end
 end
