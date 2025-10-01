@@ -2,231 +2,229 @@
 -- luacheck: globals hs
 local M = {}
 
-local CHECK_EVERY = 30 -- Interval (seconds) between idle checks
--- local JIGGLE_OFFSET = 1 -- Pixels to nudge the pointer
--- local JIGGLE_BACKOFF = 0.08 -- Delay (seconds) between out-and-back movement
+-- ===== Configuration =====
+local CHECK_INTERVAL = 5      -- Check idle time every 5 seconds
+local IDLE_THRESHOLD = 30     -- Trigger mouse movement after 30 seconds of idle
+local MOUSE_MOVE_RANGE = 50   -- Random movement within 50 pixels from current position
 
--- Target apps (names and/or bundle IDs). Match is OR between lists.
+-- Target apps (names and/or bundle IDs)
 M.config = {
     app_names = {"Microsoft Teams", "Zoom", "Slack"},
     bundle_ids = {"com.microsoft.teams2", "com.microsoft.teams"} -- new+classic Teams
 }
 
-local _lockedTimer = nil -- Timer for mouse movement when locked
+-- ===== Internal State =====
+local _idleTimer = nil
+local _appWatcher = nil
+local _cafWatcher = nil
+local _screenLocked = false
 
-if not hs then
-    local _hs = {}
-    _hs.application = {}
-    _hs.application.runningApplications = function() return {} end
-    _hs.application.watcher = {}
-    _hs.application.watcher.new = function() return {start=function() end, stop=function() end} end
-    _hs.mouse = {}
-    _hs.mouse.absolutePosition = function() return {x=0, y=0} end
-    _hs.eventtap = {}
-    _hs.eventtap.event = {}
-    _hs.eventtap.event.types = {mouseMoved=0}
-    _hs.eventtap.event.newMouseEvent = function() return {post=function() end} end
-    _hs.timer = {}
-    _hs.timer.doAfter = function(_, fn) fn() end
-    _hs.timer.new = function() return {start=function() end, stop=function() end} end
-    _hs.caffeinate = {}
-    _hs.caffeinate.set = function() end
-    _hs.caffeinate.watcher = {}
-    _hs.caffeinate.watcher.new = function() return {start=function() end, stop=function() end} end
-    _hs.task = {}
-    _hs.task.new = function() return {start=function() end, terminate=function() end} end
-    rawset(_G, "hs", _hs)
-end
-hs.application = hs.application or {}
-hs.application.runningApplications = hs.application.runningApplications or function() return {} end
-hs.application.watcher = hs.application.watcher or {}
-hs.application.watcher.new = hs.application.watcher.new or function()
-    return {
-        start = function() end,
-        stop = function() end
-    }
-end
-hs.mouse = hs.mouse or {}
-hs.mouse.absolutePosition = hs.mouse.absolutePosition or function() return {x=0, y=0} end
-hs.eventtap = hs.eventtap or {}
-hs.eventtap.event = hs.eventtap.event or {}
-hs.eventtap.event.types = hs.eventtap.event.types or {mouseMoved=0}
-hs.eventtap.event.newMouseEvent = hs.eventtap.event.newMouseEvent or function() return {post=function() end} end
-hs.timer = hs.timer or {}
-hs.timer.doAfter = hs.timer.doAfter or function(_, fn) fn() end
-hs.timer.new = hs.timer.new or function() return {start=function() end, stop=function() end} end
-hs.caffeinate = hs.caffeinate or {}
-hs.caffeinate.set = hs.caffeinate.set or function() end
-hs.caffeinate.watcher = hs.caffeinate.watcher or {}
-hs.caffeinate.watcher.new = hs.caffeinate.watcher.new or function()
-    return {
-        start = function() end,
-        stop = function() end
-    }
-end
-hs.task = hs.task or {}
-hs.task.new = hs.task.new or function() return {start=function() end, terminate=function() end} end
+-- ===== Helper Functions =====
 
--- Menubar click region and click-related constants removed
-
--- Target apps (names and/or bundle IDs). Match is OR between lists.
-M.config = {
-    app_names = {"Microsoft Teams", "Zoom", "Slack"},
-    bundle_ids = {"com.microsoft.teams2", "com.microsoft.teams"} -- new+classic Teams
-}
-
--- ===== Internals =====
---- Returns true if the given app matches any target name or bundle ID.
+--- Returns true if the given app matches any target name or bundle ID
 local function appIsTarget(app)
-    if not app or (type(app) ~= "userdata" and type(app) ~= "table") then return false end
-    local name, bundle = "", ""
-    if type(app) == "userdata" then
-        if app.name and type(app.name) == "function" then
-            name = app:name()
-        end
-        if app.bundleID and type(app.bundleID) == "function" then
-            bundle = app:bundleID()
-        end
-    elseif type(app) == "table" then
-        if type(app.name) == "function" then
-            name = app.name()
-        else
-            name = app.name or ""
-        end
-        if type(app.bundleID) == "function" then
-            bundle = app.bundleID()
-        else
-            bundle = app.bundleID or ""
-        end
+    if not app then return false end
+
+    local name = app:name() or ""
+    local bundle = app:bundleID() or ""
+
+    for _, targetName in ipairs(M.config.app_names) do
+        if name == targetName then return true end
     end
-    for _, n in ipairs(M.config.app_names or {}) do
-        if name == n then return true end
-    end
-    for _, b in ipairs(M.config.bundle_ids or {}) do
-        if bundle == b then return true end
+    for _, targetBundle in ipairs(M.config.bundle_ids) do
+        if bundle == targetBundle then return true end
     end
     return false
 end
 
---- Returns true if any target app is currently running.
-function M.targetsRunningNow()
-    if not hs.application or not hs.application.runningApplications then
-        return false
-    end
+--- Returns true if any target app is currently running
+local function targetsRunningNow()
     for _, app in ipairs(hs.application.runningApplications()) do
-        if appIsTarget(app) then return true end
+        if appIsTarget(app) then
+            return true
+        end
     end
     return false
 end
 
--- Moves the mouse by a small offset and returns it to its original position
-function M.tinyJiggle()
-    local JIGGLE_OFFSET = 1
-    local JIGGLE_BACKOFF = 0.08
+--- Gets safe display boundaries for mouse movement
+local function getSafeDisplayBounds()
+    local screens = hs.screen.allScreens()
+    if #screens == 0 then return nil end
 
-    local p = hs.mouse.absolutePosition()
-    hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.mouseMoved, {
-        x = p.x + JIGGLE_OFFSET,
-        y = p.y + JIGGLE_OFFSET
-    }):post()
+    -- Use the main screen or first available screen
+    local screen = hs.screen.mainScreen() or screens[1]
+    local frame = screen:frame()
 
-    hs.timer.doAfter(JIGGLE_BACKOFF, function()
-        hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.mouseMoved, {
-            x = p.x,
-            y = p.y
-        }):post()
-    end)
+    -- Add some padding to avoid edges
+    local padding = 50
+    return {
+        x = frame.x + padding,
+        y = frame.y + padding,
+        w = frame.w - (padding * 2),
+        h = frame.h - (padding * 2)
+    }
 end
 
--- Moves the mouse every CHECK_EVERY seconds when locked and target app is open
+--- Moves mouse to a random position within safe display bounds
+local function moveMouseRandomly()
+    local bounds = getSafeDisplayBounds()
+    if not bounds then return end
 
-local function startLockedTimer()
-    if _lockedTimer then
-        return
+    local currentPos = hs.mouse.absolutePosition()
+
+    -- Generate random position within MOUSE_MOVE_RANGE from current position
+    local deltaX = math.random(-MOUSE_MOVE_RANGE, MOUSE_MOVE_RANGE)
+    local deltaY = math.random(-MOUSE_MOVE_RANGE, MOUSE_MOVE_RANGE)
+
+    local newX = math.max(bounds.x, math.min(bounds.x + bounds.w, currentPos.x + deltaX))
+    local newY = math.max(bounds.y, math.min(bounds.y + bounds.h, currentPos.y + deltaY))
+
+    -- Move mouse to new position
+    hs.mouse.absolutePosition({x = newX, y = newY})
+
+    print(string.format("🖱️ Mouse moved randomly: (%d,%d) -> (%d,%d)",
+                       math.floor(currentPos.x), math.floor(currentPos.y),
+                       math.floor(newX), math.floor(newY)))
+end
+
+--- Main idle check function
+local function checkIdleTime()
+    if not targetsRunningNow() then
+        return -- No target apps running, skip check
     end
 
-    local _caffeinateTask = nil
-    _lockedTimer = hs.timer.new(CHECK_EVERY, function()
-        if M.targetsRunningNow() then
-            -- Prevent system sleep
+    local idleTime = hs.host.idleTime()
+
+    if idleTime >= IDLE_THRESHOLD then
+        -- User has been idle for more than threshold, move mouse
+        moveMouseRandomly()
+
+        -- Prevent display sleep when screen is locked
+        if _screenLocked then
             hs.caffeinate.set('displayIdle', true, true)
-            hs.caffeinate.set('systemIdle', true, true)
-
-            -- Simulate mouse movement to prevent Teams away status
-            M.tinyJiggle()
-
-            -- Also simulate keyboard activity by posting a null key event
-            if hs.eventtap and hs.eventtap.event then
-                local nullKeyEvent = hs.eventtap.event.newKeyEvent({}, "", true)
-                if nullKeyEvent then
-                    nullKeyEvent:post()
-                end
-            end
-
-            print("🖱️ Keep-alive: mouse jiggle + keyboard event + sleep prevention")
-
-            -- Start caffeinate process for additional protection
-            if hs.task and hs.task.new and not _caffeinateTask then
-                _caffeinateTask = hs.task.new("/usr/bin/caffeinate", nil, {"-d", "-i", "-u"})
-                _caffeinateTask:start()
-                print("☕️ caffeinate process started for additional protection")
-            end
-        else
-            -- Clean up when no target apps are running
-            hs.caffeinate.set('displayIdle', false, true)
-            hs.caffeinate.set('systemIdle', false, true)
-            if _caffeinateTask then
-                _caffeinateTask:terminate()
-                _caffeinateTask = nil
-                print("☕️ caffeinate process stopped")
-            end
-            _lockedTimer:stop()
-            _lockedTimer = nil
-            print("🛑 Keep-alive timer stopped (no target apps)")
+            print("🔒 Screen locked - preventing display sleep")
         end
-    end)
-    _lockedTimer:start()
-    print(string.format("⏱️ Keep-alive timer started (every %ss)", CHECK_EVERY))
+
+        print(string.format("⏰ Idle for %ds (threshold: %ds) - keeping active",
+                           math.floor(idleTime), IDLE_THRESHOLD))
+    end
 end
 
---- Starts the keepalive timer. Accepts optional config overrides.
+--- Starts the idle check timer
+local function startIdleTimer()
+    if _idleTimer then return end
 
+    _idleTimer = hs.timer.new(CHECK_INTERVAL, checkIdleTime)
+    _idleTimer:start()
+    print(string.format("⏱️ Idle keep-alive started (check every %ds, threshold %ds)",
+                       CHECK_INTERVAL, IDLE_THRESHOLD))
+end
+
+--- Stops the idle check timer
+local function stopIdleTimer()
+    if _idleTimer then
+        _idleTimer:stop()
+        _idleTimer = nil
+        hs.caffeinate.set('displayIdle', false, true) -- Re-enable display sleep
+        print("⏹️ Idle keep-alive stopped")
+    end
+end
+
+--- Handles app launch/terminate events
+local function handleAppEvent(_appName, eventType, _appObject)
+    if eventType == hs.application.watcher.launched or
+       eventType == hs.application.watcher.terminated then
+
+        if targetsRunningNow() then
+            startIdleTimer()
+        else
+            stopIdleTimer()
+        end
+    end
+end
+
+--- Handles system sleep/wake/lock events
+local function handleCaffeinateEvent(eventType)
+    if eventType == hs.caffeinate.watcher.screensDidLock then
+        _screenLocked = true
+        print("🔒 Screen locked - idle keep-alive continues")
+
+    elseif eventType == hs.caffeinate.watcher.screensDidUnlock then
+        _screenLocked = false
+        hs.caffeinate.set('displayIdle', false, true) -- Re-enable normal display sleep
+        print("🔓 Screen unlocked")
+
+    elseif eventType == hs.caffeinate.watcher.systemWillSleep then
+        stopIdleTimer()
+        print("� System going to sleep - idle keep-alive paused")
+
+    elseif eventType == hs.caffeinate.watcher.systemDidWake then
+        if targetsRunningNow() then
+            startIdleTimer()
+            print("🌅 System woke up - idle keep-alive resumed")
+        end
+    end
+end
+
+-- ===== Public API =====
+
+--- Starts the idle keep-alive module
 function M.start(opts)
     opts = opts or {}
+
+    -- Override config if provided
     if opts.app_names then
         M.config.app_names = opts.app_names
     end
     if opts.bundle_ids then
         M.config.bundle_ids = opts.bundle_ids
     end
-    startLockedTimer()
+
+    -- Start watchers
+    if not _appWatcher then
+        _appWatcher = hs.application.watcher.new(handleAppEvent)
+        _appWatcher:start()
+    end
+
+    if not _cafWatcher then
+        _cafWatcher = hs.caffeinate.watcher.new(handleCaffeinateEvent)
+        _cafWatcher:start()
+    end
+
+    -- Start timer if target apps are already running
+    if targetsRunningNow() then
+        startIdleTimer()
+    end
+
+    print(string.format("✅ idle_keepalive started - monitoring %d apps",
+                       #M.config.app_names + #M.config.bundle_ids))
 end
 
---- Stops the keepalive timer and resets state.
+--- Stops the idle keep-alive module
 function M.stop()
-    if _lockedTimer then
-        _lockedTimer:stop()
-        _lockedTimer = nil
-        print("🛑 Locked keep-alive timer stopped by stop() call.")
+    -- Stop timer
+    stopIdleTimer()
+
+    -- Stop watchers
+    if _appWatcher then
+        _appWatcher:stop()
+        _appWatcher = nil
     end
+
+    if _cafWatcher then
+        _cafWatcher:stop()
+        _cafWatcher = nil
+    end
+
+    -- Reset state
+    _screenLocked = false
+
+    print("🛑 idle_keepalive stopped")
 end
 
--- Minimal test helpers for busted unit tests
-function M._test_appIsTarget(app)
-    local name = app.name and app.name()
-    local bundleID = app.bundleID and app.bundleID()
-    for _, targetName in ipairs(M.config.app_names or {}) do
-        if name == targetName then return true end
-    end
-    for _, targetID in ipairs(M.config.bundle_ids or {}) do
-        if bundleID == targetID then return true end
-    end
-    return false
-end
-
-function M.new()
-    return M
-end
-
+-- For testing
+M._test_appIsTarget = appIsTarget
+M._test_targetsRunningNow = targetsRunningNow
 
 return M
