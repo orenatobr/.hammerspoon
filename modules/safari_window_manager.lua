@@ -32,7 +32,7 @@ local function moveSafariWindow(win)
         hs.timer.doAfter(0.2, function()
             local f = targetScreen:frame()
             win:setFrame({
-                x = f.x + f.w / 2,
+                x = f.x,
                 y = f.y,
                 w = f.w / 2,
                 h = f.h
