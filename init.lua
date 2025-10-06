@@ -3,6 +3,11 @@
 local ok, _ = pcall(require, 'tests.test_hs_mock')
 -- luacheck: globals hs
 -- luacheck: ignore hs
+
+-- Enable Spotlight support for better application name searches
+if hs and hs.application and hs.application.enableSpotlightForNameSearches then
+    hs.application.enableSpotlightForNameSearches(true)
+end
 if not hs then
     hs = {}
 end
@@ -46,12 +51,6 @@ local tabNavigation = require("modules.tab_navigation")
 local appNavigation = require("modules.app_navigation")
 local lockScreen = require("modules.lock_screen")
 local autoFullscreen = require("modules.auto_fullscreen")
-local safariPIPDetector = require("modules.safari_pip_detector")
-safariPIPDetector.check()
-safariPIPDetector.scanAllAXWindows()
-safariPIPDetector.startPIPWatcher = safariPIPDetector.startPIPWatcher or
-                                        require("modules.safari_pip_detector").startPIPWatcher
-safariPIPDetector.startPIPWatcher()
 
 autoBrightness.start()
 filezillaCaffeinate.start()
@@ -77,12 +76,8 @@ windowCycle.bindHotkey()
 launchPadShortcut.bindHotkey()
 refreshPage.bindHotkey()
 tabNavigation.bindHotkey()
-safariPIPDetector.check()
-safariPIPDetector.scanAllAXWindows()
 lockScreen.bindHotkey()
 appNavigation.bindHotkey()
-safariPIPDetector.check()
-safariPIPDetector.scanAllAXWindows()
 
 print("✅ Hammerspoon Productivity Toolkit initialized.")
 hs.alert.show("🎉 All automations active")

@@ -11,7 +11,7 @@ local M = {}
 
 local safariWindowFilter = nil
 
---- Moves a Safari window to the secondary screen and resizes it to half width.
+--- Moves a Safari window to the secondary screen and resizes it to half width (right side).
 local function moveSafariWindow(win)
     if not win or not win:isStandard() then return end
     if win:application():name() ~= "Safari" then return end
@@ -26,14 +26,13 @@ local function moveSafariWindow(win)
         end
     end
     if not targetScreen then return end
-    -- Delay to ensure window is ready
     hs.timer.doAfter(0.3, function()
         if not win:isVisible() then return end
         win:moveToScreen(targetScreen)
         hs.timer.doAfter(0.2, function()
             local f = targetScreen:frame()
             win:setFrame({
-                x = f.x,
+                x = f.x + f.w / 2,
                 y = f.y,
                 w = f.w / 2,
                 h = f.h
@@ -42,16 +41,18 @@ local function moveSafariWindow(win)
     end)
 end
 
---- Starts the Safari window manager (moves new windows to secondary screen).
+--- Starts the Safari window manager (moves new/focused windows to secondary screen).
 function M.start()
     safariWindowFilter = hs.window.filter.new(false):setAppFilter("Safari", {
         allowRoles = "*"
     })
-    safariWindowFilter:subscribe({hs.window.filter.windowCreated}, function(win, _, _)
-        hs.timer.doAfter(0.2, function()
-            moveSafariWindow(win)
+    -- luacheck: ignore appName event
+    safariWindowFilter:subscribe({hs.window.filter.windowCreated, hs.window.filter.windowFocused},
+        function(win, appName, event)
+            hs.timer.doAfter(0.2, function()
+                moveSafariWindow(win)
+            end)
         end)
-    end)
 end
 
 --- Stops the Safari window manager.
@@ -63,5 +64,3 @@ function M.stop()
 end
 
 return M
-
--- ...existing code...
