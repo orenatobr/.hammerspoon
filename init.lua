@@ -39,7 +39,6 @@ end
 local autoBrightness = require("modules.auto_brightness")
 local windowCycle = require("modules.window_cycle")
 local launchPadShortcut = require("modules.launchpad_hotkey")
-local filezillaCaffeinate = require("modules.filezilla_caffeinate")
 local keepalive = require("modules.idle_keepalive")
 local autoLock = require("modules.auto_lock")
 local teamsFocus = require("modules.teams_focus_restore")
@@ -53,10 +52,12 @@ local lockScreen = require("modules.lock_screen")
 local autoFullscreen = require("modules.auto_fullscreen")
 
 autoBrightness.start()
-filezillaCaffeinate.start()
 keepalive.start({
-    app_names = {"Microsoft Teams", "Zoom", "Slack"},
-    bundle_ids = {"com.microsoft.teams2"}
+    app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla", "Code"},
+    bundle_ids = {
+        "com.microsoft.teams2", "com.microsoft.teams",
+        "org.filezilla-project.filezilla", "com.microsoft.VSCode"
+    }
 })
 autoLock.start()
 teamsFocus.start()

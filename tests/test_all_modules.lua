@@ -9,7 +9,6 @@ local modules = {
     "auto_fullscreen",
     "auto_lock",
     "aws_tab_monitor",
-    "filezilla_caffeinate",
     "idle_keepalive",
     "launchpad_hotkey",
     "refresh_hotkey",

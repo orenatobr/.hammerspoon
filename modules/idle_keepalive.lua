@@ -9,14 +9,17 @@ local MAX_IDLE_TIME = 20       -- Never let system be idle more than 20 seconds
 
 -- Target apps (names and/or bundle IDs)
 M.config = {
-    app_names = {"Microsoft Teams", "Zoom", "Slack"},
-    bundle_ids = {"com.microsoft.teams2", "com.microsoft.teams"} -- new+classic Teams
+    app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla", "Code"},
+    bundle_ids = {
+        "com.microsoft.teams2", "com.microsoft.teams",
+        "org.filezilla-project.filezilla", "com.microsoft.VSCode"
+    } -- new+classic Teams, FileZilla, VSCode
 }
 
 -- ===== Internal State =====
 local _activityTimer = nil
 local _appWatcher = nil
-local _cafWatcher = nil
+local _caffeinateWatcher = nil
 
 -- ===== Helper Functions =====
 
@@ -108,6 +111,10 @@ local function startActivityTimer()
     hs.caffeinate.set('displayIdle', true, true)
     hs.caffeinate.set('systemIdle', true, true)
 
+    -- Show visual notification
+    hs.alert.closeAll()
+    hs.alert.show("🛡️ Keep-Alive ON")
+
     print(string.format("⏱️ Aggressive keep-alive started (activity every %ds, max idle %ds)",
                        ACTIVITY_INTERVAL, MAX_IDLE_TIME))
 end
@@ -121,6 +128,10 @@ local function stopActivityTimer()
         -- Re-enable normal sleep behavior
         hs.caffeinate.set('displayIdle', false, true)
         hs.caffeinate.set('systemIdle', false, true)
+
+        -- Show visual notification
+        hs.alert.closeAll()
+        hs.alert.show("💤 Keep-Alive OFF")
 
         print("⏹️ Aggressive keep-alive stopped")
     end
@@ -186,9 +197,9 @@ function M.start(opts)
         _appWatcher:start()
     end
 
-    if not _cafWatcher then
-        _cafWatcher = hs.caffeinate.watcher.new(handleCaffeinateEvent)
-        _cafWatcher:start()
+    if not _caffeinateWatcher then
+        _caffeinateWatcher = hs.caffeinate.watcher.new(handleCaffeinateEvent)
+        _caffeinateWatcher:start()
     end
 
     -- Start aggressive activity simulation if target apps are already running
@@ -211,9 +222,9 @@ function M.stop()
         _appWatcher = nil
     end
 
-    if _cafWatcher then
-        _cafWatcher:stop()
-        _cafWatcher = nil
+    if _caffeinateWatcher then
+        _caffeinateWatcher:stop()
+        _caffeinateWatcher = nil
     end
 
     print("🛑 AGGRESSIVE idle_keepalive stopped")
