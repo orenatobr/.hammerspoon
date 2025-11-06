@@ -44,8 +44,8 @@ local autoLock = require("modules.auto_lock")
 local teamsFocus = require("modules.teams_focus_restore")
 local refreshPage = require("modules.refresh_hotkey")
 local awsTabMonitor = require("modules.aws_tab_monitor")
-local safariManager = require("modules.safari_window_manager")
-local vscodeManager = require("modules.vscode_window_manager")
+-- local safariManager = require("modules.safari_window_manager")
+-- local vscodeManager = require("modules.vscode_window_manager")
 local tabNavigation = require("modules.tab_navigation")
 local appNavigation = require("modules.app_navigation")
 local lockScreen = require("modules.lock_screen")
@@ -54,16 +54,14 @@ local autoFullscreen = require("modules.auto_fullscreen")
 autoBrightness.start()
 keepalive.start({
     app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla", "Code"},
-    bundle_ids = {
-        "com.microsoft.teams2", "com.microsoft.teams",
-        "org.filezilla-project.filezilla", "com.microsoft.VSCode"
-    }
+    bundle_ids = {"com.microsoft.teams2", "com.microsoft.teams", "org.filezilla-project.filezilla",
+                  "com.microsoft.VSCode"}
 })
 autoLock.start()
 teamsFocus.start()
 awsTabMonitor.start()
-safariManager.start()
-vscodeManager.start()
+-- safariManager.start()
+-- vscodeManager.start()
 autoFullscreen.start({
     native_fullscreen = false,
     internal_hint = "Built%-in",
