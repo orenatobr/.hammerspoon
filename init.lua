@@ -50,6 +50,7 @@ local tabNavigation = require("modules.tab_navigation")
 local appNavigation = require("modules.app_navigation")
 local lockScreen = require("modules.lock_screen")
 local autoFullscreen = require("modules.auto_fullscreen")
+local cmdDAndCmd4 = require("modules.cmd_d_and_4")
 
 autoBrightness.start()
 keepalive.start({
@@ -77,6 +78,7 @@ refreshPage.bindHotkey()
 tabNavigation.bindHotkey()
 lockScreen.bindHotkey()
 appNavigation.bindHotkey()
+cmdDAndCmd4.bindHotkey()
 
 print("✅ Hammerspoon Productivity Toolkit initialized.")
 hs.alert.show("🎉 All automations active")
