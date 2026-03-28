@@ -11,6 +11,16 @@ end
 if not hs then
     hs = {}
 end
+
+if hs and not hs.ipc then
+    local okIpc, ipcModule = pcall(require, "hs.ipc")
+    if okIpc and ipcModule then
+        hs.ipc = ipcModule
+    else
+        print("⚠️ Unable to load hs.ipc; `hs` CLI will be unavailable")
+    end
+end
+
 hs.alert = hs.alert or {
     show = function()
     end

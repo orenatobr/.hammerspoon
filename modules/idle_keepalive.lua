@@ -20,6 +20,7 @@ M.config = {
 local _activityTimer = nil
 local _appWatcher = nil
 local _caffeinateWatcher = nil
+local _lidClosed = false
 
 -- ===== Helper Functions =====
 
@@ -81,11 +82,16 @@ local function simulateActivity()
         return -- No target apps running
     end
 
+    hs.caffeinate.set('systemIdle', true, true)
+
+    if _lidClosed then
+        hs.caffeinate.set('displayIdle', false, true)
+        return
+    end
+
     local idleTime = hs.host.idleTime()
 
-    -- Always prevent system/display sleep
     hs.caffeinate.set('displayIdle', true, true)
-    hs.caffeinate.set('systemIdle', true, true)
 
     -- If idle time is approaching the threshold, simulate activity
     if idleTime >= MAX_IDLE_TIME then
@@ -100,6 +106,21 @@ local function simulateActivity()
     end
 end
 
+local function clearSleepAssertions()
+    hs.caffeinate.set('displayIdle', false, true)
+    hs.caffeinate.set('systemIdle', false, true)
+end
+
+local function applySleepAssertions()
+    if not targetsRunningNow() then
+        clearSleepAssertions()
+        return
+    end
+
+    hs.caffeinate.set('systemIdle', true, true)
+    hs.caffeinate.set('displayIdle', not _lidClosed, true)
+end
+
 --- Starts the activity simulation timer
 local function startActivityTimer()
     if _activityTimer then return end
@@ -107,9 +128,7 @@ local function startActivityTimer()
     _activityTimer = hs.timer.new(ACTIVITY_INTERVAL, simulateActivity)
     _activityTimer:start()
 
-    -- Immediate sleep prevention
-    hs.caffeinate.set('displayIdle', true, true)
-    hs.caffeinate.set('systemIdle', true, true)
+    applySleepAssertions()
 
     -- Show visual notification
     hs.alert.closeAll()
@@ -125,16 +144,14 @@ local function stopActivityTimer()
         _activityTimer:stop()
         _activityTimer = nil
 
-        -- Re-enable normal sleep behavior
-        hs.caffeinate.set('displayIdle', false, true)
-        hs.caffeinate.set('systemIdle', false, true)
-
         -- Show visual notification
         hs.alert.closeAll()
         hs.alert.show("💤 Keep-Alive OFF")
 
         print("⏹️ Aggressive keep-alive stopped")
     end
+
+    clearSleepAssertions()
 end
 
 --- Handles app launch/terminate events
@@ -143,6 +160,7 @@ local function handleAppEvent(_appName, eventType, _appObject)
        eventType == hs.application.watcher.terminated then
 
         if targetsRunningNow() then
+            applySleepAssertions()
             startActivityTimer()
         else
             stopActivityTimer()
@@ -162,8 +180,10 @@ local function handleCaffeinateEvent(eventType)
         -- Aggressively prevent sleep when target apps are running
         if targetsRunningNow() then
             print("🚫 BLOCKING system sleep - keeping apps available")
-            -- Force activity to prevent sleep
-            simulateActivity()
+            applySleepAssertions()
+            if not _lidClosed then
+                simulateActivity()
+            end
         else
             stopActivityTimer()
             print("💤 Allowing system sleep - no target apps running")
@@ -211,10 +231,27 @@ function M.start(opts)
                        #M.config.app_names + #M.config.bundle_ids))
 end
 
+function M.setLidClosed(isClosed, reason)
+    local nextValue = not not isClosed
+    if _lidClosed == nextValue then
+        return
+    end
+
+    _lidClosed = nextValue
+    applySleepAssertions()
+    print(string.format("🖥️ Keep-alive lid mode: %s%s", _lidClosed and "closed" or "open",
+        reason and (" (" .. reason .. ")") or ""))
+end
+
+function M.isLidClosed()
+    return _lidClosed
+end
+
 --- Stops the aggressive keep-alive module
 function M.stop()
     -- Stop activity timer
     stopActivityTimer()
+    _lidClosed = false
 
     -- Stop watchers
     if _appWatcher then
@@ -233,5 +270,7 @@ end
 -- For testing
 M._test_appIsTarget = appIsTarget
 M._test_targetsRunningNow = targetsRunningNow
+M._test_startActivityTimer = startActivityTimer
+M._test_simulateActivity = simulateActivity
 
 return M

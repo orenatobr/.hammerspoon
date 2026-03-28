@@ -5,7 +5,26 @@ _G.hs = _G.hs or {}
 hs.timer = hs.timer or {}
 hs.caffeinate = hs.caffeinate or {}
 hs.application = hs.application or {}
+hs.alert = hs.alert or {}
 hs.application.runningApplications = function() return {} end
+hs.alert.show = function() end
+hs.alert.closeAll = function() end
+hs.host = hs.host or {}
+hs.host.idleTime = function() return 0 end
+hs.mouse = hs.mouse or {}
+hs.mouse.absolutePosition = function(pos)
+    if pos then
+        return pos
+    end
+    return {x = 0, y = 0}
+end
+hs.eventtap = hs.eventtap or {}
+hs.eventtap.event = hs.eventtap.event or {}
+hs.eventtap.event.newScrollEvent = function()
+    return {
+        post = function() end
+    }
+end
 hs.application.watcher = {
     launched = "launched",
     terminated = "terminated",
@@ -31,6 +50,13 @@ hs.caffeinate.watcher = {
     screensDidUnlock = "screensDidUnlock",
     sessionDidBecomeActive = "sessionDidBecomeActive"
 }
+hs.caffeinate.set = function() end
+hs.timer.new = function(_, _)
+    return {
+        start = function() end,
+        stop = function() end
+    }
+end
 
 -- Unit tests for idle_keepalive.lua
 local busted = require('busted')
@@ -107,5 +133,30 @@ describe("idle_keepalive", function()
         app.name = function() return "Other" end
         app.bundleID = function() return "other" end
         assert.is_false(idle_keepalive._test_appIsTarget(app))
+    end)
+
+    it("should keep system awake but allow display sleep when lid is closed", function()
+        local setCalls = {}
+        hs.caffeinate.set = function(kind, enabled, global)
+            table.insert(setCalls, {kind = kind, enabled = enabled, global = global})
+        end
+        hs.application.runningApplications = function()
+            return {{
+                name = function() return "Code" end,
+                bundleID = function() return "com.microsoft.VSCode" end
+            }}
+        end
+
+        idle_keepalive.setLidClosed(true, "test")
+        idle_keepalive._test_simulateActivity()
+
+        assert.is_true(idle_keepalive.isLidClosed())
+        assert.are.same('systemIdle', setCalls[3].kind)
+        assert.is_true(setCalls[3].enabled)
+        assert.are.same('displayIdle', setCalls[4].kind)
+        assert.is_false(setCalls[4].enabled)
+
+        idle_keepalive.setLidClosed(false, "test")
+        idle_keepalive.stop()
     end)
 end)

@@ -18,7 +18,8 @@ M.config = {
 
     -- Stability / UX
     screens_settle_seconds = 2.0, -- pause after screens change
-    quarantine_seconds = 12.0 -- skip auto actions on wins moved by a screens change
+    quarantine_seconds = 12.0, -- skip auto actions on wins moved by a screens change
+    log_quarantine_windows = false -- avoid heavy per-window logging during screen churn
 }
 
 -- ======================================
@@ -185,6 +186,7 @@ M._lastScreenChangeAt = 0
 
 M._winLastScreen = {} -- [win:id()] = screenUUID
 M._quarantine = {} -- [win:id()] = epochSecondsExpiry
+M._quarantineDuringChangeCount = 0
 
 --- Returns the current epoch time in seconds.
 local function now()
@@ -287,6 +289,7 @@ end
 --- Handles screen change events, sets quarantine, and sweeps windows after settling.
 local function handleScreensChanged()
     M._screensChanging = true
+    M._quarantineDuringChangeCount = 0
     M._lastScreenChangeAt = now()
     if M._screensChangeTimer then
         M._screensChangeTimer:stop()
@@ -300,6 +303,10 @@ local function handleScreensChanged()
             end
         end
         print("[auto_fullscreen] screens settled")
+        if M._quarantineDuringChangeCount > 0 then
+            print(string.format("[auto_fullscreen] quarantined %d windows during screens change",
+                M._quarantineDuringChangeCount))
+        end
 
         -- After settling, wait for quarantine to end and then sweep once
         hs.timer.doAfter(M.config.quarantine_seconds + 0.2, function()
@@ -316,8 +323,7 @@ local function subscribeWatchers()
         M._screenWatcher:start()
     end
     if not M._cafWatcher then
-    -- luacheck: ignore event
-    M._cafWatcher = hs.caffeinate.watcher.new(function(_)
+        M._cafWatcher = hs.caffeinate.watcher.new(function(event)
             if event == hs.caffeinate.watcher.screensDidSleep or event == hs.caffeinate.watcher.screensDidWake or event ==
                 hs.caffeinate.watcher.systemWillSleep or event == hs.caffeinate.watcher.systemDidWake then
                 handleScreensChanged()
@@ -369,9 +375,12 @@ function M.start(opts)
 
         if M._screensChanging and prevUUID and prevUUID ~= internalUUID and currUUID == internalUUID then
             markQuarantine(win, M.config.quarantine_seconds)
-            print(string.format(
-                "[auto_fullscreen] quarantined win %s for %.1fs (external→internal during screens change)",
-                tostring(win:id()), M.config.quarantine_seconds))
+            M._quarantineDuringChangeCount = M._quarantineDuringChangeCount + 1
+            if M.config.log_quarantine_windows then
+                print(string.format(
+                    "[auto_fullscreen] quarantined win %s for %.1fs (external→internal during screens change)",
+                    tostring(win:id()), M.config.quarantine_seconds))
+            end
         end
 
         rememberScreen(win)
