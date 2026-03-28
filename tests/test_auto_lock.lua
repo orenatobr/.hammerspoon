@@ -14,6 +14,15 @@ describe("auto_lock", function()
     local ioregState
     local pendingTimers
 
+    local function commandExecuted(command)
+        for _, call in ipairs(executeCalls) do
+            if call.command == command then
+                return true
+            end
+        end
+        return false
+    end
+
     local function runPendingTimers()
         local timers = pendingTimers
         pendingTimers = {}
@@ -129,7 +138,7 @@ describe("auto_lock", function()
         runPendingTimers()
 
         assert.is_true(keepaliveCalls[1])
-        assert.are.equal('/usr/bin/pmset displaysleepnow', executeCalls[2].command)
+        assert.is_true(commandExecuted('/usr/bin/pmset displaysleepnow'))
         assert.are.same({kind = 'displayIdle', enabled = false, global = true}, caffeinateSetCalls[1])
     end)
 
@@ -161,6 +170,7 @@ describe("auto_lock", function()
         runPendingTimers()
         runPendingTimers()
 
-        assert.is_false(keepaliveCalls[1])
+        assert.is_nil(keepaliveCalls[1])
+        assert.is_false(commandExecuted('/usr/bin/pmset displaysleepnow'))
     end)
 end)

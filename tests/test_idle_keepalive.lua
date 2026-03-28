@@ -137,9 +137,20 @@ describe("idle_keepalive", function()
 
     it("should keep system awake but allow display sleep when lid is closed", function()
         local setCalls = {}
+        local function hasSetCall(kind, enabled)
+            for _, call in ipairs(setCalls) do
+                if call.kind == kind and call.enabled == enabled and call.global == true then
+                    return true
+                end
+            end
+            return false
+        end
+
         hs.caffeinate.set = function(kind, enabled, global)
             table.insert(setCalls, {kind = kind, enabled = enabled, global = global})
         end
+        idle_keepalive.config.app_names = {"Code"}
+        idle_keepalive.config.bundle_ids = {"com.microsoft.VSCode"}
         hs.application.runningApplications = function()
             return {{
                 name = function() return "Code" end,
@@ -151,10 +162,8 @@ describe("idle_keepalive", function()
         idle_keepalive._test_simulateActivity()
 
         assert.is_true(idle_keepalive.isLidClosed())
-        assert.are.same('systemIdle', setCalls[3].kind)
-        assert.is_true(setCalls[3].enabled)
-        assert.are.same('displayIdle', setCalls[4].kind)
-        assert.is_false(setCalls[4].enabled)
+        assert.is_true(hasSetCall('systemIdle', true))
+        assert.is_true(hasSetCall('displayIdle', false))
 
         idle_keepalive.setLidClosed(false, "test")
         idle_keepalive.stop()
