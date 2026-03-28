@@ -149,6 +149,8 @@ describe("idle_keepalive", function()
         hs.caffeinate.set = function(kind, enabled, global)
             table.insert(setCalls, {kind = kind, enabled = enabled, global = global})
         end
+        idle_keepalive.config.app_names = {"Code"}
+        idle_keepalive.config.bundle_ids = {"com.microsoft.VSCode"}
         hs.application.runningApplications = function()
             return {{
                 name = function() return "Code" end,
