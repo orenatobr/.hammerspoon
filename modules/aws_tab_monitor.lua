@@ -45,7 +45,8 @@ end
 function M.start()
     print("🧪 AWS Account Monitor started")
     if not pollTimer then
-        pollTimer = hs.timer.doEvery(0.5, function()
+        -- 0.5s estava rodando AppleScript 2x/segundo. 2s é suficiente para feedback imediato.
+        pollTimer = hs.timer.doEvery(2.0, function()
             local safari = hs.application.find("Safari")
             if safari and safari:isFrontmost() then
                 showAWSAccount()

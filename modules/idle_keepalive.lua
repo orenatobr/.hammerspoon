@@ -3,9 +3,12 @@
 local M = {}
 
 -- ===== Configuration =====
-local ACTIVITY_INTERVAL = 15  -- Simulate activity every 15 seconds (aggressive)
+-- O módulo já usa hs.caffeinate.set para bloquear o sleep (abordagem correta).
+-- Mouse jiggle e scroll events são redundantes quando caffeinate está ativo.
+-- Intervalo de 15s era desnecessariamente agressivo — 60s é suficiente como fallback.
+local ACTIVITY_INTERVAL = 60  -- Fallback de atividade a cada 60 segundos
 local MOUSE_JIGGLE_PIXELS = 1  -- Tiny mouse movement (almost unnoticeable)
-local MAX_IDLE_TIME = 20       -- Never let system be idle more than 20 seconds
+local MAX_IDLE_TIME = 120      -- Sincronizado com o timer de sleep padrão do sistema
 
 -- Target apps (names and/or bundle IDs)
 M.config = {

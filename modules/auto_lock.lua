@@ -4,7 +4,9 @@ local ok, keepalive = pcall(require, "modules.idle_keepalive")
 -- ===== Config =====
 local OPEN_DELAY = 0.05 -- minimal delay to avoid holding screen wake-up
 local CLOSE_DELAY = 0.4 -- wait after lid close before sleeping displays
-local LID_POLL_INTERVAL = 0.25
+-- Polling is only a fallback; screen/caffeinate watchers catch most transitions.
+-- 0.25s (#4/s) was spawning ioreg shell processes at very high rate.
+local LID_POLL_INTERVAL = 10.0
 local DISPLAY_SLEEP_RETRIES = 4
 local DISPLAY_SLEEP_RETRY_INTERVAL = 1.0
 local INTERNAL_HINTS = {"built%-in", "liquid retina", "color lcd"}
@@ -58,32 +60,9 @@ local function stopDisplaySleepReinforcement()
     M._displaySleepTimers = {}
 end
 
-local function lidClosedFromIoreg()
-    if not hs.execute then
-        return nil
-    end
-
-    local output = hs.execute('/usr/sbin/ioreg -r -k AppleClamshellState -d 4', true)
-    if type(output) ~= "string" then
-        return nil
-    end
-
-    if output:match('AppleClamshellState" = Yes') then
-        return true
-    end
-    if output:match('AppleClamshellState" = No') then
-        return false
-    end
-
-    return nil
-end
-
 local function isLidClosed()
-    local explicitState = lidClosedFromIoreg()
-    if explicitState ~= nil then
-        return explicitState
-    end
-
+    -- internalDisplayPresent() usa a API nativa do Hammerspoon e é equivalente
+    -- ao ioreg, sem spawnar um processo filho a cada chamada.
     return not internalDisplayPresent()
 end
 
