@@ -403,6 +403,12 @@ function M.start(opts)
         if inQuarantine(win) then
             return
         end
+        -- Only reposition on focus for apps explicitly in maximize_only_apps.
+        -- Calling fillWindow on every focus change for ALL apps causes constant
+        -- CPU wake-ups via the global window filter.
+        if not shouldMaximize(win, M.config) then
+            return
+        end
         if isOnInternalScreen(win, M.config) then
             fillWindow(win, M.config)
         end
