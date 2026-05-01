@@ -170,7 +170,7 @@ local function resizePanels(win)
         if s.midX < midWin then
             if not leftSash  or s.midX > leftSash.midX  then leftSash  = s end
         elseif s.midX <= rightZoneMax then
-            if not rightSash or s.midX > rightSash.midX then rightSash = s end
+            if not rightSash or s.midX < rightSash.midX then rightSash = s end
         end
     end
     for _, s in ipairs(horizSashes) do
