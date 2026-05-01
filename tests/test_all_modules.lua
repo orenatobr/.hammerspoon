@@ -8,7 +8,6 @@ local modules = {
     "auto_brightness",
     "auto_fullscreen",
     "auto_lock",
-    "aws_tab_monitor",
     "idle_keepalive",
     "launchpad_hotkey",
     "refresh_hotkey",
