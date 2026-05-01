@@ -29,8 +29,8 @@ local SPLITTER_STEP_SECS = 0.35  -- gap between consecutive splitter drags
 --- Recursively collect all AX elements with the given role.
 -- Stops descent at maxDepth to avoid hanging on deep Electron trees.
 -- @param element hs.axuielement  root element
--- @param role    string          AXRole to match (e.g. "AXSplitter")
--- @param maxDepth number         max recursion depth (default 8)
+-- @param role    string          AXRole to match (e.g. "AXGroup")
+-- @param maxDepth number         max recursion depth (default 15; callers may pass higher values)
 -- @param _depth  number          internal counter (default 0)
 -- @return table  flat list of matching elements
 local function findByRole(element, role, maxDepth, _depth)
