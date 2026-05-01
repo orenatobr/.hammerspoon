@@ -24,7 +24,7 @@ hs.timer = hs.timer or {
 }
 
 hs.mouse = hs.mouse or {
-    setAbsolutePosition = function() end
+    absolutePosition = function() end
 }
 
 hs.eventtap = hs.eventtap or {
