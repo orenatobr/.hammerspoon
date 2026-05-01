@@ -1,0 +1,10 @@
+[
+  {
+    "key": "cmd+shift+alt+r",
+    "command": "workbench.action.reloadWindow"
+  },
+  {
+    "key": "cmd+shift+alt+a",
+    "command": "workbench.action.focusAuxiliaryBar"
+  }
+]

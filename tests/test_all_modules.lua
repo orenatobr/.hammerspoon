@@ -16,7 +16,8 @@ local modules = {
     "tab_navigation",
     "teams_focus_restore",
     "vscode_window_manager",
-    "window_cycle"
+    "window_cycle",
+    "reset_vscode"
 }
 for _, name in ipairs(modules) do
     require("modules." .. name)
