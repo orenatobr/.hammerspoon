@@ -3,7 +3,8 @@
 -- modules/reset_vscode.lua
 -- Module: reset_vscode
 -- Purpose: Reloads the VS Code window and resets the three main panel sizes to
---          20% of the window dimensions using macOS Accessibility (AXSplitter drag):
+--          20% of the window dimensions by locating thin AXGroup sash handles
+--          via macOS Accessibility and dragging them with the mouse:
 --            • Left sidebar  (file explorer)   → 20 % of window width
 --            • Right sidebar (Copilot / aux)   → 20 % of window width
 --            • Bottom panel  (terminal)        → 20 % of window height
