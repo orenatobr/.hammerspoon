@@ -99,7 +99,6 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 - **`refresh_hotkey.lua`**: Hotkey to clear browser cache and reload.
 - **`tab_navigation.lua`**: Chooser for Safari tabs.
 - **`app_navigation.lua`**: Chooser for running apps.
-- **`aws_tab_monitor.lua`**: Detects AWS account in Safari tab and shows mapped label.
 - **`safari_window_manager.lua`**: Moves Safari windows to secondary display.
 - **`vscode_window_manager.lua`**: Moves VS Code windows to secondary display.
 - **`teams_focus_restore.lua`**: Restores focus to last useful Teams window.
@@ -112,7 +111,6 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 ## Configuration and Troubleshooting
 
 - **Change hotkeys**: Edit the `hs.hotkey.bind` calls inside each module.
-- **AWS account mapping** (`modules/aws_tab_monitor.lua`): Update the `accountMap` table.
 - **Teams app name** (`modules/teams_focus_restore.lua`): Adjust the `appName` variable if you use a Teams variant.
 - **Bluetooth Shortcuts** (`modules/auto_lock.lua`): Ensure Shortcuts are named **“Bluetooth On”** and **“Bluetooth Off”**.
 - **Window placement**: Tweak display logic in Safari/VS Code managers as needed.
@@ -136,7 +134,6 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 │   ├── app_navigation.lua
 │   ├── auto_brightness.lua
 │   ├── auto_lock.lua
-│   ├── aws_tab_monitor.lua
 │   ├── filezilla_caffeinate.lua
 │   ├── launchpad_hotkey.lua
 │   ├── refresh_hotkey.lua

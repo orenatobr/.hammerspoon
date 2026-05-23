@@ -8,7 +8,6 @@ local modules = {
     "auto_brightness",
     "auto_fullscreen",
     "auto_lock",
-    "aws_tab_monitor",
     "idle_keepalive",
     "launchpad_hotkey",
     "refresh_hotkey",
@@ -16,7 +15,8 @@ local modules = {
     "tab_navigation",
     "teams_focus_restore",
     "vscode_window_manager",
-    "window_cycle"
+    "window_cycle",
+    "reset_vscode"
 }
 for _, name in ipairs(modules) do
     require("modules." .. name)
