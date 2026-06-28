@@ -6,7 +6,7 @@ local HOTKEY_MODS = {"alt"}
 local HOTKEY_KEY  = "f"
 
 local function relaunchTerminal()
-    local app = hs.application.find("Code")
+    local app = hs.application.find("Code") or hs.application.find("Visual Studio Code")
     if not app then
         hs.alert.show("VS Code not running")
         return
