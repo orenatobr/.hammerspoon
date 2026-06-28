@@ -16,7 +16,8 @@ local modules = {
     "teams_focus_restore",
     "vscode_window_manager",
     "window_cycle",
-    "reset_vscode"
+    "reset_vscode",
+    "relaunch_terminal"
 }
 for _, name in ipairs(modules) do
     require("modules." .. name)
