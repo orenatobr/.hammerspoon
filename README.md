@@ -79,13 +79,14 @@ For more details, see the [Getting Started guide](https://www.hammerspoon.org/go
 
 ## Hotkeys
 
-| Hotkey    | Module                 | Action                                                               |
-| --------- | ---------------------- | -------------------------------------------------------------------- |
-| `Alt + C` | `window_cycle.lua`     | Cycle through the current app’s standard/visible windows.            |
-| `Alt + A` | `launchpad_hotkey.lua` | Open Launchpad.                                                      |
-| `Alt + R` | `refresh_hotkey.lua`   | Clear browser cache (`⌥⌘E`), then reload (`⌘R`) after 1s.            |
-| `Alt + S` | `tab_navigation.lua`   | Open chooser of **Safari** tabs (title + URL) and jump to selection. |
-| `Alt + Z` | `app_navigation.lua`   | Open chooser of **running apps** with icons; activate selection.     |
+| Hotkey    | Module                  | Action                                                               |
+| --------- | ----------------------- | -------------------------------------------------------------------- |
+| `Alt + C` | `window_cycle.lua`      | Cycle through the current app’s standard/visible windows.            |
+| `Alt + A` | `launchpad_hotkey.lua`  | Open Launchpad.                                                      |
+| `Alt + R` | `refresh_hotkey.lua`    | Clear browser cache (`⌥⌘E`), then reload (`⌘R`) after 1s.            |
+| `Alt + S` | `tab_navigation.lua`    | Open chooser of **Safari** tabs (title + URL) and jump to selection. |
+| `Alt + Z` | `app_navigation.lua`    | Open chooser of **running apps** with icons; activate selection.     |
+| `Alt + F` | `relaunch_terminal.lua` | Relaunch the active integrated terminal in VS Code.                  |
 
 > You can change any hotkey inside each module’s `hs.hotkey.bind({...}, "KEY", ...)`.
 
@@ -106,6 +107,8 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 - **`filezilla_caffeinate.lua`**: Prevents display sleep while FileZilla is running.
 - **`auto_lock.lua`**: Triggers Bluetooth Shortcuts on lid state changes.
 - **`safari_pip_detector.lua`**: Detects Safari Picture-in-Picture (PIP) window and automatically moves it to the bottom-left of the internal screen. Continuously monitors for the PIP window and repositions it for optimal visibility. Useful for keeping Safari PIP out of the way and always in a predictable location. Integrates with the main config and requires Accessibility permissions.
+- **`reset_vscode.lua`**: Reloads the VS Code window and resets sidebar/panel sizes.
+- **`relaunch_terminal.lua`**: Relaunches the active integrated terminal in VS Code via its native "Terminal: Relaunch Active Terminal" command.
 - **`init.lua`**: Loads all modules and binds hotkeys.
 
 ## Configuration and Troubleshooting

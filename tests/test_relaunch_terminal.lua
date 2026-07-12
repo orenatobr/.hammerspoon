@@ -2,8 +2,8 @@
 -- luacheck: ignore busted
 
 -- Unit tests for modules/relaunch_terminal.lua
--- Verifies the public interface and the VS Code command-palette flow without
--- triggering real keyboard events or application focus changes.
+-- These tests verify the public interface and internal guards without
+-- triggering real keyboard events.
 
 _G.hs = _G.hs or {}
 
@@ -24,8 +24,7 @@ hs.timer = hs.timer or {
 }
 
 hs.eventtap = hs.eventtap or {
-    keyStroke  = function() end,
-    keyStrokes = function() end,
+    keyStroke = function() end
 }
 
 hs.application = hs.application or {
@@ -33,112 +32,79 @@ hs.application = hs.application or {
 }
 
 -- ──────────────────────────────────────────────────────────────────────────────
+-- Load the module under test
+-- ──────────────────────────────────────────────────────────────────────────────
+
+local relaunch_terminal = require('../modules/relaunch_terminal')
+
+-- ──────────────────────────────────────────────────────────────────────────────
 -- Tests
 -- ──────────────────────────────────────────────────────────────────────────────
 
+local busted = require('busted')
+
 describe("relaunch_terminal", function()
-    local capturedFn
-    local alertShown
-    local activated
-    local keyStrokeCalls
-    local keyStrokesCalls
 
-    before_each(function()
-        capturedFn      = nil
-        alertShown      = nil
-        activated       = false
-        keyStrokeCalls  = {}
-        keyStrokesCalls = {}
-
-        _G.hs.hotkey.bind = function(_, _, fn) capturedFn = fn end
-        _G.hs.alert.show  = function(msg) alertShown = msg end
-        _G.hs.timer.doAfter = function(_, fn) if fn then fn() end end
-        _G.hs.eventtap.keyStroke  = function(mods, key)
-            table.insert(keyStrokeCalls, {mods = mods, key = key})
-        end
-        _G.hs.eventtap.keyStrokes = function(text)
-            table.insert(keyStrokesCalls, text)
-        end
-        _G.hs.application.find = function() return nil end
-
-        package.loaded["modules.relaunch_terminal"] = nil
+    it("should export a table", function()
+        assert.is_table(relaunch_terminal)
     end)
 
-    it("returns a module table", function()
-        local m = require("modules.relaunch_terminal")
-        assert.is_table(m)
+    it("should expose a bindHotkey function", function()
+        assert.is_function(relaunch_terminal.bindHotkey)
     end)
 
-    it("exposes bindHotkey as a function", function()
-        local m = require("modules.relaunch_terminal")
-        assert.is_function(m.bindHotkey)
-    end)
-
-    it("shows alert when VS Code is not running", function()
-        local m = require("modules.relaunch_terminal")
-        m.bindHotkey()
-        assert.is_function(capturedFn)
-        capturedFn()
-        assert.is_not_nil(alertShown)
-        assert.truthy(alertShown:find("VS Code"))
-    end)
-
-    it("does not send keystrokes when VS Code is not running", function()
-        local m = require("modules.relaunch_terminal")
-        m.bindHotkey()
-        capturedFn()
-        assert.equals(0, #keyStrokeCalls)
-        assert.equals(0, #keyStrokesCalls)
-    end)
-
-    it("activates VS Code when found", function()
-        _G.hs.application.find = function() return {activate = function() activated = true end} end
-        local m = require("modules.relaunch_terminal")
-        m.bindHotkey()
-        capturedFn()
-        assert.is_true(activated)
-    end)
-
-    it("opens the command palette with Cmd+Shift+P when VS Code is found", function()
-        _G.hs.application.find = function() return {activate = function() end} end
-        local m = require("modules.relaunch_terminal")
-        m.bindHotkey()
-        capturedFn()
-        local found = false
-        for _, call in ipairs(keyStrokeCalls) do
-            if call.key == "p" then
-                local hasCmd, hasShift = false, false
-                for _, mod in ipairs(call.mods) do
-                    if mod == "cmd"   then hasCmd   = true end
-                    if mod == "shift" then hasShift = true end
-                end
-                if hasCmd and hasShift then found = true end
+    describe("bindHotkey", function()
+        it("should call hs.hotkey.bind without error", function()
+            local called = false
+            hs.hotkey.bind = function(mods, key, _fn)
+                called = true
+                assert.same({"alt"}, mods)
+                assert.equals("f", key)
             end
-        end
-        assert.is_true(found)
+            relaunch_terminal.bindHotkey()
+            assert.is_true(called)
+        end)
     end)
 
-    it("types 'relaunch active terminal' into the command palette", function()
-        _G.hs.application.find = function() return {activate = function() end} end
-        local m = require("modules.relaunch_terminal")
-        m.bindHotkey()
-        capturedFn()
-        local found = false
-        for _, text in ipairs(keyStrokesCalls) do
-            if text:find("relaunch active terminal") then found = true end
-        end
-        assert.is_true(found)
+    describe("relaunchTerminal (via hotkey callback)", function()
+        it("should show an alert when VS Code is not running", function()
+            local alertMsg = nil
+            hs.alert.show = function(msg) alertMsg = msg end
+            hs.application.find = function() return nil end
+
+            -- Capture the hotkey callback and invoke it directly
+            local capturedFn = nil
+            hs.hotkey.bind = function(_mods, _key, fn) capturedFn = fn end
+            relaunch_terminal.bindHotkey()
+
+            assert.is_function(capturedFn)
+            capturedFn()
+            assert.is_not_nil(alertMsg)
+            assert.truthy(alertMsg:find("não encontrado") or alertMsg:find("VS Code"))
+        end)
+
+        it("should activate VS Code and send the relaunch keystroke when found", function()
+            local activated = false
+            local fakeApp = {
+                activate = function() activated = true end,
+            }
+            hs.application.find = function() return fakeApp end
+
+            local strokeMods, strokeKey = nil, nil
+            hs.eventtap.keyStroke = function(mods, key)
+                strokeMods = mods
+                strokeKey = key
+            end
+
+            local capturedFn = nil
+            hs.hotkey.bind = function(_mods, _key, fn) capturedFn = fn end
+            relaunch_terminal.bindHotkey()
+
+            capturedFn()
+            assert.is_true(activated)
+            assert.same({"cmd", "shift", "alt"}, strokeMods)
+            assert.equals("t", strokeKey)
+        end)
     end)
 
-    it("sends Return to confirm the command", function()
-        _G.hs.application.find = function() return {activate = function() end} end
-        local m = require("modules.relaunch_terminal")
-        m.bindHotkey()
-        capturedFn()
-        local found = false
-        for _, call in ipairs(keyStrokeCalls) do
-            if call.key == "return" then found = true end
-        end
-        assert.is_true(found)
-    end)
 end)

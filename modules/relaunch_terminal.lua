@@ -1,28 +1,52 @@
 -- luacheck: globals hs
 -- luacheck: max line length 120
+-- modules/relaunch_terminal.lua
+-- Module: relaunch_terminal
+-- Purpose: Relaunches the active integrated terminal in VS Code by
+--          activating VS Code and triggering its "Terminal: Relaunch Active
+--          Terminal" command (bound to Cmd+Shift+Alt+T in
+--          vscode/keybindings.json).
+-- Hotkey: Option + F
+
 local M = {}
 
-local HOTKEY_MODS = {"alt"}
-local HOTKEY_KEY  = "f"
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Config
+-- ──────────────────────────────────────────────────────────────────────────────
 
+local HOTKEY_MODS = {"alt"}
+local HOTKEY_KEY = "f"
+local ACTIVATE_WAIT_SECS = 0.3 -- seconds to wait for VS Code to focus before sending the keystroke
+
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Main action
+-- ──────────────────────────────────────────────────────────────────────────────
+
+--- Activate VS Code and relaunch its active integrated terminal.
 local function relaunchTerminal()
-    local app = hs.application.find("Code") or hs.application.find("Visual Studio Code")
+    local app = hs.application.find("Code")
     if not app then
-        hs.alert.show("VS Code not running")
+        app = hs.application.find("Visual Studio Code")
+    end
+    if not app then
+        hs.alert.show("VS Code não encontrado")
         return
     end
+
     app:activate()
-    hs.timer.doAfter(0.2, function()
-        hs.eventtap.keyStroke({"cmd", "shift"}, "p")
-        hs.timer.doAfter(0.3, function()
-            hs.eventtap.keyStrokes("relaunch active terminal")
-            hs.timer.doAfter(0.3, function()
-                hs.eventtap.keyStroke({}, "return")
-            end)
-        end)
+    hs.timer.doAfter(ACTIVATE_WAIT_SECS, function()
+        -- Trigger relaunch via dedicated keybinding
+        -- (Cmd+Shift+Alt+T → workbench.action.terminal.relaunchActiveTerminal)
+        hs.eventtap.keyStroke({"cmd", "shift", "alt"}, "t")
+        hs.alert.show("🔁 Terminal relançado")
     end)
 end
 
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Public API
+-- ──────────────────────────────────────────────────────────────────────────────
+
+--- Bind Option + F to the VS Code terminal relaunch action.
 function M.bindHotkey()
     hs.hotkey.bind(HOTKEY_MODS, HOTKEY_KEY, relaunchTerminal)
 end

@@ -6,5 +6,9 @@
   {
     "key": "cmd+shift+alt+a",
     "command": "workbench.action.focusAuxiliaryBar"
+  },
+  {
+    "key": "cmd+shift+alt+t",
+    "command": "workbench.action.terminal.relaunchActiveTerminal"
   }
 ]
