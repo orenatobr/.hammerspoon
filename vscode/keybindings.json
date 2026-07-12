@@ -9,6 +9,12 @@
   },
   {
     "key": "cmd+shift+alt+t",
-    "command": "workbench.action.terminal.relaunchActiveTerminal"
+    "command": "runCommands",
+    "args": {
+      "commands": [
+        "workbench.action.terminal.kill",
+        "workbench.action.terminal.new"
+      ]
+    }
   }
 ]
