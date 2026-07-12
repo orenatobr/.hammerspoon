@@ -5,7 +5,8 @@
 -- Purpose: Relaunches the active integrated terminal in VS Code by
 --          activating VS Code and triggering a "runCommands" chain (kill
 --          the active terminal, then create a new one) bound to
---          Cmd+Shift+Alt+T in vscode/keybindings.json.
+--          Cmd+Shift+Alt+T in vscode/keybindings.json. Requires VS Code
+--          1.77+ for "runCommands" support.
 -- Hotkey: Option + F
 
 local M = {}
