@@ -3,9 +3,9 @@
 -- modules/relaunch_terminal.lua
 -- Module: relaunch_terminal
 -- Purpose: Relaunches the active integrated terminal in VS Code by
---          activating VS Code and triggering its "Terminal: Relaunch Active
---          Terminal" command (bound to Cmd+Shift+Alt+T in
---          vscode/keybindings.json).
+--          activating VS Code and triggering a "runCommands" chain (kill
+--          the active terminal, then create a new one) bound to
+--          Cmd+Shift+Alt+T in vscode/keybindings.json.
 -- Hotkey: Option + F
 
 local M = {}
@@ -36,7 +36,7 @@ local function relaunchTerminal()
     app:activate()
     hs.timer.doAfter(ACTIVATE_WAIT_SECS, function()
         -- Trigger relaunch via dedicated keybinding
-        -- (Cmd+Shift+Alt+T → workbench.action.terminal.relaunchActiveTerminal)
+        -- (Cmd+Shift+Alt+T → runCommands: terminal.kill + terminal.new)
         hs.eventtap.keyStroke({"cmd", "shift", "alt"}, "t")
         hs.alert.show("🔁 Terminal relançado")
     end)
