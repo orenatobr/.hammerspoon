@@ -6,5 +6,21 @@
   {
     "key": "cmd+shift+alt+a",
     "command": "workbench.action.focusAuxiliaryBar"
+  },
+  {
+    "key": "cmd+k cmd+t",
+    "command": "workbench.action.terminal.toggleTerminal"
+  },
+  {
+    "key": "alt+cmd+left",
+    "command": "workbench.action.navigateBack"
+  },
+  {
+    "key": "alt+cmd+right",
+    "command": "workbench.action.navigateForward"
+  },
+  {
+    "key": "cmd+shift+alt+t",
+    "command": "workbench.action.terminal.relaunchActiveTerminal"
   }
 ]

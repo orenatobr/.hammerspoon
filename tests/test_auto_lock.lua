@@ -1,12 +1,11 @@
 
--- luacheck: globals hs busted describe it assert
+-- luacheck: globals hs busted describe it assert before_each after_each
 -- luacheck: ignore busted
 local busted = require('busted')
 
 describe("auto_lock", function()
     local auto_lock
     local currentScreens
-    local watcherCallback
     local lidWatcherCallback
     local keepaliveCalls
     local executeCalls
@@ -61,7 +60,6 @@ describe("auto_lock", function()
         keepaliveCalls = {}
         executeCalls = {}
         caffeinateSetCalls = {}
-        watcherCallback = nil
         lidWatcherCallback = nil
         ioregState = "No"
         pendingTimers = {}
@@ -104,8 +102,7 @@ describe("auto_lock", function()
                     return currentScreens
                 end,
                 watcher = {
-                    new = function(cb)
-                        watcherCallback = cb
+                    new = function()
                         return {
                             start = function() end,
                             stop = function() end

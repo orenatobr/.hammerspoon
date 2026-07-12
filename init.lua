@@ -61,6 +61,7 @@ local lockScreen = require("modules.lock_screen")
 local autoFullscreen = require("modules.auto_fullscreen")
 local cmdDAndCmd4 = require("modules.cmd_d_and_4")
 local resetVSCode = require("modules.reset_vscode")
+local relaunchTerminal = require("modules.relaunch_terminal")
 
 autoBrightness.start()
 keepalive.start({
@@ -89,6 +90,7 @@ lockScreen.bindHotkey()
 appNavigation.bindHotkey()
 cmdDAndCmd4.bindHotkey()
 resetVSCode.bindHotkey()
+relaunchTerminal.bindHotkey()
 
 print("✅ Hammerspoon Productivity Toolkit initialized.")
 hs.alert.show("🎉 All automations active")
