@@ -9,6 +9,7 @@ local modules = {
     "auto_fullscreen",
     "auto_lock",
     "idle_keepalive",
+    "lid_audio_mute",
     "launchpad_hotkey",
     "refresh_hotkey",
     "safari_window_manager",
