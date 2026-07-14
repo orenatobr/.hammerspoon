@@ -24,7 +24,8 @@ hs.timer = hs.timer or {
 }
 
 hs.eventtap = hs.eventtap or {
-    keyStroke = function() end
+    keyStroke = function() end,
+    keyStrokes = function() end
 }
 
 hs.application = hs.application or {
@@ -83,17 +84,20 @@ describe("relaunch_terminal", function()
             assert.truthy(alertMsg:find("não encontrado") or alertMsg:find("VS Code"))
         end)
 
-        it("should activate VS Code and send the relaunch keystroke when found", function()
+        it("should activate VS Code and run the relaunch command via the Command Palette when found", function()
             local activated = false
             local fakeApp = {
                 activate = function() activated = true end,
             }
             hs.application.find = function() return fakeApp end
 
-            local strokeMods, strokeKey = nil, nil
+            local strokes = {}
             hs.eventtap.keyStroke = function(mods, key)
-                strokeMods = mods
-                strokeKey = key
+                table.insert(strokes, {mods = mods, key = key})
+            end
+            local typedText = nil
+            hs.eventtap.keyStrokes = function(text)
+                typedText = text
             end
 
             local capturedFn = nil
@@ -102,8 +106,11 @@ describe("relaunch_terminal", function()
 
             capturedFn()
             assert.is_true(activated)
-            assert.same({"cmd", "shift", "alt"}, strokeMods)
-            assert.equals("t", strokeKey)
+            assert.same({"cmd", "shift"}, strokes[1].mods)
+            assert.equals("p", strokes[1].key)
+            assert.equals("Relaunch Active Terminal", typedText)
+            assert.same({}, strokes[2].mods)
+            assert.equals("return", strokes[2].key)
         end)
     end)
 
