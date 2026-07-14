@@ -34,7 +34,7 @@ hs.window.filter = hs.window.filter or {
 local busted = require('busted')
 local googleMeetWindowManager = require('../modules/google_meet_window_manager')
 
-local function makeWindow(id)
+local function makeWindow(id, size)
     local win = {closed = false, focused = false}
     win.id = function()
         return id
@@ -44,6 +44,9 @@ local function makeWindow(id)
     end
     win.title = function()
         return "Meet window " .. tostring(id)
+    end
+    win.size = function()
+        return size or {w = 800, h = 600}
     end
     win.close = function()
         win.closed = true
@@ -95,6 +98,21 @@ describe("google_meet_window_manager", function()
         assert.is_true(win2.focused)
     end)
 
+    it("does not close the meet window when a transient share-bar window appears", function()
+        local meetWin = makeWindow(1)
+        local shareBar = makeWindow(2, {w = 300, h = 60})
+        makeApp("Meet", {meetWin, shareBar})
+
+        googleMeetWindowManager.start()
+        capturedHandler(shareBar, "Meet", "windowCreated")
+        googleMeetWindowManager.stop()
+
+        assert.is_false(meetWin.closed)
+        assert.is_false(shareBar.closed)
+        assert.is_false(meetWin.focused)
+        assert.is_false(shareBar.focused)
+    end)
+
     it("does not touch windows belonging to other apps", function()
         local otherWin = makeWindow(99)
         makeApp("Slack", {otherWin})
@@ -138,6 +156,24 @@ describe("google_meet_window_manager", function()
         end
     end)
 
+    it("does not treat a lingering share-bar window as a duplicate on start", function()
+        local meetWin = makeWindow(1)
+        local shareBar = makeWindow(2, {w = 300, h = 60})
+        local app = makeApp("Meet", {meetWin, shareBar})
+        hs.application.runningApplications = function()
+            return {app}
+        end
+
+        googleMeetWindowManager.start()
+        googleMeetWindowManager.stop()
+
+        assert.is_false(meetWin.closed)
+        assert.is_false(shareBar.closed)
+        hs.application.runningApplications = function()
+            return {}
+        end
+    end)
+
     it("matches apps by name or bundle id", function()
         local win1 = makeWindow(1)
         local app = makeApp("Meet", {win1})
@@ -147,6 +183,19 @@ describe("google_meet_window_manager", function()
             return "Something Else"
         end
         assert.is_false(googleMeetWindowManager._test_appMatchesTarget(app))
+    end)
+
+    it("isMeetingWindow distinguishes real meeting windows from transient ones", function()
+        local meetWin = makeWindow(1)
+        local shareBar = makeWindow(2, {w = 300, h = 60})
+        local nonStandard = makeWindow(3)
+        nonStandard.isStandard = function()
+            return false
+        end
+
+        assert.is_true(googleMeetWindowManager._test_isMeetingWindow(meetWin))
+        assert.is_false(googleMeetWindowManager._test_isMeetingWindow(shareBar))
+        assert.is_false(googleMeetWindowManager._test_isMeetingWindow(nonStandard))
     end)
 
     it("M.stop() runs without error", function()
