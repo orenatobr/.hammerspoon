@@ -8,6 +8,7 @@ local modules = {
     "auto_brightness",
     "auto_fullscreen",
     "auto_lock",
+    "google_meet_window_manager",
     "idle_keepalive",
     "lid_audio_mute",
     "launchpad_hotkey",

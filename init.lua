@@ -63,6 +63,7 @@ local autoFullscreen = require("modules.auto_fullscreen")
 local cmdDAndCmd4 = require("modules.cmd_d_and_4")
 local resetVSCode = require("modules.reset_vscode")
 local relaunchTerminal = require("modules.relaunch_terminal")
+local googleMeetWindowManager = require("modules.google_meet_window_manager")
 
 autoBrightness.start()
 keepalive.start({
@@ -83,6 +84,7 @@ autoFullscreen.start({
     screens_settle_seconds = 2.0,
     quarantine_seconds = 12.0
 })
+googleMeetWindowManager.start()
 
 windowCycle.bindHotkey()
 launchPadShortcut.bindHotkey()

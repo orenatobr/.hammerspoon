@@ -64,6 +64,7 @@ For more details, see the [Getting Started guide](https://www.hammerspoon.org/go
 - **App switcher (chooser)**: Fuzzy-pick any running app to focus.
 - **AWS Console account detector (Safari)**: Detects the current AWS account from the tab URL and shows a mapped label (e.g., `🔴 fsm-prod`).
 - **Safari & VS Code window placement**: Auto-move new/focused windows to a secondary display when available.
+- **Google Meet single-window enforcement**: Automatically closes duplicate Google Meet (Chrome App) windows, keeping only the one you just opened or focused.
 
 ### Presence & Power Helpers
 
@@ -102,6 +103,7 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 - **`app_navigation.lua`**: Chooser for running apps.
 - **`safari_window_manager.lua`**: Moves Safari windows to secondary display.
 - **`vscode_window_manager.lua`**: Moves VS Code windows to secondary display.
+- **`google_meet_window_manager.lua`**: Closes duplicate Google Meet (Chrome App) windows, keeping only the most recently opened/focused one.
 - **`teams_focus_restore.lua`**: Restores focus to last useful Teams window.
 - **`teams_mouse.lua`**: Keeps Teams presence active with mouse jiggle.
 - **`filezilla_caffeinate.lua`**: Prevents display sleep while FileZilla is running.
@@ -138,6 +140,7 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 │   ├── auto_brightness.lua
 │   ├── auto_lock.lua
 │   ├── filezilla_caffeinate.lua
+│   ├── google_meet_window_manager.lua
 │   ├── launchpad_hotkey.lua
 │   ├── refresh_hotkey.lua
 │   ├── safari_window_manager.lua
