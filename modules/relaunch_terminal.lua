@@ -3,10 +3,11 @@
 -- modules/relaunch_terminal.lua
 -- Module: relaunch_terminal
 -- Purpose: Relaunches the active integrated terminal in VS Code by
---          activating VS Code and triggering a "runCommands" chain (kill
---          the active terminal, then create a new one) bound to
---          Cmd+Shift+Alt+T in vscode/keybindings.json. Requires VS Code
---          1.77+ for "runCommands" support.
+--          activating VS Code, opening the Command Palette, and running
+--          its built-in "Relaunch Active Terminal" command
+--          (workbench.action.terminal.relaunch). This command has no
+--          default keybinding, so it's invoked via the palette instead
+--          of a custom keybindings.json entry.
 -- Hotkey: Option + F
 
 local M = {}
@@ -17,7 +18,8 @@ local M = {}
 
 local HOTKEY_MODS = {"alt"}
 local HOTKEY_KEY = "f"
-local ACTIVATE_WAIT_SECS = 0.3 -- seconds to wait for VS Code to focus before sending the keystroke
+local ACTIVATE_WAIT_SECS = 0.3 -- seconds to wait for VS Code to focus before opening the Command Palette
+local PALETTE_WAIT_SECS = 0.2 -- seconds to wait for the Command Palette to open before typing
 
 -- ──────────────────────────────────────────────────────────────────────────────
 -- Main action
@@ -36,10 +38,13 @@ local function relaunchTerminal()
 
     app:activate()
     hs.timer.doAfter(ACTIVATE_WAIT_SECS, function()
-        -- Trigger relaunch via dedicated keybinding
-        -- (Cmd+Shift+Alt+T → runCommands: terminal.kill + terminal.new)
-        hs.eventtap.keyStroke({"cmd", "shift", "alt"}, "t")
-        hs.alert.show("🔁 Terminal relançado")
+        -- Open the Command Palette and run the built-in relaunch command
+        hs.eventtap.keyStroke({"cmd", "shift"}, "p")
+        hs.timer.doAfter(PALETTE_WAIT_SECS, function()
+            hs.eventtap.keyStrokes("Relaunch Active Terminal")
+            hs.eventtap.keyStroke({}, "return")
+            hs.alert.show("🔁 Terminal relançado")
+        end)
     end)
 end
 
