@@ -72,6 +72,16 @@ describe("refresh_hotkey", function()
             assert.matches('do JavaScript', scriptRun, 1, true)
         end)
 
+        it("should erase cookies across host/parent-domain and path variants", function()
+            -- Regression test: a bare `path=/` re-set without `domain` is a
+            -- no-op for cookies set with e.g. `domain=.example.com`, so the
+            -- JS must retry across domain and path combinations.
+            capturedFn()
+            assert.matches("doms%.forEach", scriptRun)
+            assert.matches("paths%.forEach", scriptRun)
+            assert.matches("domain=", scriptRun, 1, true)
+        end)
+
         it("should clear storage via AppleScript when Chrome is frontmost", function()
             frontAppName = "Google Chrome"
             capturedFn()

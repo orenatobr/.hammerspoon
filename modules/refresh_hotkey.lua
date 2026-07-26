@@ -17,12 +17,34 @@ local M = {}
 -- Clears localStorage, sessionStorage, cookies, IndexedDB and Cache Storage for
 -- the current page. Kept as a single line (no newlines) so it can be embedded
 -- safely inside an AppleScript double-quoted string.
+--
+-- Cookie deletion tries every host/domain (bare + leading-dot, current host and
+-- registrable parent domain) and path (root + current pathname) combination,
+-- since a cookie only expires when the new one's domain/path match the
+-- original's exactly (a bare `path=/` re-set is a no-op for a cookie that was
+-- set with e.g. `domain=.example.com`).
+--
+-- This can only ever touch storage/cookies readable from page JS. Cookies
+-- flagged HttpOnly (typically the actual session cookie on sites that follow
+-- security best practices, e.g. Instagram's `sessionid`) are invisible to
+-- `document.cookie` by design and cannot be cleared this way — so this hotkey
+-- will NOT force a logout on such sites. See README for details.
 local CLEAR_STORAGE_JS = "(function(){"
     .. "try{localStorage.clear();}catch(e){}"
     .. "try{sessionStorage.clear();}catch(e){}"
-    .. "try{document.cookie.split(';').forEach(function(c){"
-    .. "document.cookie=c.replace(/^ +/,'').replace(/=.*/,'=;expires='+new Date(0).toUTCString()+';path=/');"
-    .. "});}catch(e){}"
+    .. "try{"
+    .. "var exp=new Date(0).toUTCString();"
+    .. "var eraseCookie=function(n){"
+    .. "var h=location.hostname,parts=h.split('.'),doms=[h,'.'+h];"
+    .. "if(parts.length>2){var pd=parts.slice(-2).join('.');doms.push(pd,'.'+pd);}"
+    .. "var paths=['/',location.pathname];"
+    .. "doms.forEach(function(dm){paths.forEach(function(pp){"
+    .. "document.cookie=n+'=;expires='+exp+';path='+pp+';domain='+dm;"
+    .. "});});"
+    .. "document.cookie=n+'=;expires='+exp+';path=/';"
+    .. "};"
+    .. "document.cookie.split(';').forEach(function(c){eraseCookie(c.split('=')[0].replace(/^ +/,''));});"
+    .. "}catch(e){}"
     .. "try{if(window.indexedDB&&indexedDB.databases){indexedDB.databases().then(function(dbs){"
     .. "dbs.forEach(function(db){indexedDB.deleteDatabase(db.name);});"
     .. "});}}catch(e){}"
