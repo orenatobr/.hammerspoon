@@ -13,6 +13,7 @@ local modules = {
     "lid_audio_mute",
     "launchpad_hotkey",
     "refresh_hotkey",
+    "passwords_hotkey",
     "safari_window_manager",
     "tab_navigation",
     "teams_focus_restore",
