@@ -59,7 +59,7 @@ For more details, see the [Getting Started guide](https://www.hammerspoon.org/go
 - **Auto brightness**: Adjusts display brightness based on power source (AC vs Battery).
 - **Window cycle (per app)**: Cycle through the current app’s windows with a hotkey.
 - **Launchpad shortcut**: Quick open Launchpad.
-- **Browser refresh macro**: Clear cache then reload (Safari/Chrome dev workflows).
+- **Browser refresh macro**: Clear storage (localStorage/sessionStorage/cookies/IndexedDB/Cache Storage) via JS, clear cache, then reload (Safari/Chrome dev workflows).
 - **Safari tab switcher**: Fuzzy-pick any open Safari tab via chooser.
 - **App switcher (chooser)**: Fuzzy-pick any running app to focus.
 - **AWS Console account detector (Safari)**: Detects the current AWS account from the tab URL and shows a mapped label (e.g., `🔴 fsm-prod`).
@@ -85,7 +85,7 @@ For more details, see the [Getting Started guide](https://www.hammerspoon.org/go
 | `Alt + C` | `window_cycle.lua`      | Cycle through the current app’s standard/visible windows.            |
 | `Alt + A` | `launchpad_hotkey.lua`  | Open Launchpad.                                                      |
 | `Alt + P` | `passwords_hotkey.lua`  | Open the Passwords (Senhas) quick-access popover.                    |
-| `Alt + R` | `refresh_hotkey.lua`    | Clear browser cache (`⌥⌘E`), then reload (`⌘R`) after 1s.            |
+| `Alt + R` | `refresh_hotkey.lua`    | Clear storage (Safari/Chrome), clear cache, then reload after 1s.    |
 | `Alt + S` | `tab_navigation.lua`    | Open chooser of **Safari** tabs (title + URL) and jump to selection. |
 | `Alt + Z` | `app_navigation.lua`    | Open chooser of **running apps** with icons; activate selection.     |
 | `Alt + F` | `relaunch_terminal.lua` | Relaunch the active integrated terminal in VS Code.                  |
@@ -100,7 +100,7 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 - **`window_cycle.lua`**: Cycles through current app’s windows.
 - **`launchpad_hotkey.lua`**: Hotkey to open Launchpad.
 - **`passwords_hotkey.lua`**: Hotkey to open the Passwords quick-access popover.
-- **`refresh_hotkey.lua`**: Hotkey to clear browser cache and reload.
+- **`refresh_hotkey.lua`**: Hotkey to clear browser storage (Safari/Chrome), clear cache, and reload. Storage clearing requires "Allow JavaScript from Apple Events" enabled in Safari's/Chrome's Develop (or View > Developer) menu; without it, it silently falls back to cache+reload only. **Limitation**: this only clears storage/cookies reachable from page JavaScript. Session cookies flagged `HttpOnly` (the norm for the actual login cookie on most sites, e.g. Instagram's `sessionid`) are invisible to `document.cookie` by browser design, so this hotkey will _not_ force a logout on such sites — it's meant for clearing dev-visible state (localStorage, sessionStorage, IndexedDB, Cache Storage, non-HttpOnly cookies), not for a full "remove all site data".
 - **`tab_navigation.lua`**: Chooser for Safari tabs.
 - **`app_navigation.lua`**: Chooser for running apps.
 - **`safari_window_manager.lua`**: Moves Safari windows to secondary display.
