@@ -41,6 +41,8 @@ function M.bindHotkey()
         end
     local chooser = hs.chooser.new(function(choice)
             if choice then
+                -- URL comes from web content: escape so it cannot break out of the AppleScript string
+                local safeUrl = choice.url:gsub('[\\"]', '\\%0')
                 local openTabScript = string.format([[
                     tell application "Safari"
                         set theURL to "%s"
@@ -53,7 +55,7 @@ function M.bindHotkey()
                         end repeat
                         activate
                     end tell
-                ]], choice.url)
+                ]], safeUrl)
                 hs.osascript.applescript(openTabScript)
             end
         end)

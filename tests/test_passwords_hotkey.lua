@@ -2,6 +2,7 @@
 -- luacheck: ignore busted
 _G.hs = _G.hs or {}
 hs.hotkey = hs.hotkey or {}
+hs.application = hs.application or {}
 
 local busted = require('busted')
 local passwords_hotkey = require('../modules/passwords_hotkey')
@@ -26,5 +27,15 @@ describe("passwords_hotkey", function()
         assert.is_true(passwords_hotkey.open())
         assert.are.same({ x = 120, y = 0 }, clicked)
         assert.are.same({ x = 1, y = 2 }, restored)
+    end)
+
+    it("launches the menu bar extra via argv, not a shell string", function()
+        local exe, args
+        hs.alert = { show = function() end }
+        hs.application.get = function() return nil end
+        hs.task = { new = function(e, _, a) exe, args = e, a; return { start = function() end } end }
+        passwords_hotkey.open()
+        assert.are.equal("/usr/bin/open", exe)
+        assert.are.equal("-g", args[1])
     end)
 end)
