@@ -15,7 +15,7 @@ local EXTRA_PATH = "/System/Applications/Passwords.app/Contents/Library/LoginIte
 function M.open()
     local app = hs.application.get(BUNDLE_ID)
     if not app then
-        hs.execute(string.format("/usr/bin/open -g %q", EXTRA_PATH))
+        hs.task.new("/usr/bin/open", nil, { "-g", EXTRA_PATH }):start()
         app = hs.application.get(BUNDLE_ID)
     end
     local bar = app and hs.axuielement.applicationElement(app):attributeValue("AXExtrasMenuBar")

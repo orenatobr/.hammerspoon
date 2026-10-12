@@ -21,8 +21,9 @@ local CANDIDATES = {
 local function openByPath(appPath)
     if not appPath then return false end
     if not hs.fs.attributes(appPath) then return false end
-    local ok = hs.execute(string.format('/usr/bin/open -a %q', appPath), true)
-    return ok ~= nil
+    -- hs.task passes argv directly, no shell involved
+    local task = hs.task.new("/usr/bin/open", nil, { "-a", appPath })
+    return task ~= nil and task:start() ~= nil
 end
 
 --- Attempts to open an app by its name.
