@@ -13,7 +13,8 @@ local function mockNav()
     hs.eventtap = { new = function() return { start = noop, stop = noop } end, event = { types = {} } }
     hs.keycodes = { map = {} }
     hs.canvas = { windowLevels = {}, new = function()
-        return setmetatable({ level = noop, delete = noop, hide = noop }, { __newindex = noop })
+        return setmetatable({ level = noop, delete = noop, hide = noop,
+            show = noop, frame = noop }, { __newindex = noop })
     end }
 end
 
@@ -100,7 +101,7 @@ describe("passwords_hotkey", function()
             local bar = { attributeValue = function() return { item } end }
             local win = { attributeValue = function(_, k)
                 if k == "AXFrame" then return { x = 0, y = 0, w = 100, h = 100 } end
-                return {}
+                return state.children or {}
             end }
             hs.application.get = function() return {} end
             hs.axuielement = { applicationElement = function()
@@ -110,7 +111,8 @@ describe("passwords_hotkey", function()
                 end }
             end }
             hs.eventtap = {
-                new = function() return { start = function() started = started + 1 end,
+                new = function() return { isEnabled = function() return started > 0 end,
+                                          start = function() started = started + 1 end,
                                           stop = function() stopped = stopped + 1 end } end,
                 leftClick = function() end, event = { types = {} } }
             hs.mouse = { absolutePosition = function() return { x = 0, y = 0 } end }
@@ -141,6 +143,33 @@ describe("passwords_hotkey", function()
             assert.is_false(ph.onKey("left", false))
             tick()
             assert.are.equal(0, stopped)
+        end)
+
+        it("walks the copyable fields of the detail screen and copies on Return", function()
+            hs.fnutils = { contains = function(t, v) for _, x in ipairs(t) do if x == v then return true end end end }
+            local clicks = {}
+            hs.eventtap.leftClick = function(p) clicks[#clicks + 1] = p end
+            local function field(y)
+                return {
+                    actionNames = function() return { "AXShowMenu" } end,
+                    performAction = function() end,
+                    attributeValue = function(_, k)
+                        if k == "AXRole" then return "AXStaticText" end
+                        if k == "AXFrame" then return { x = 0, y = y, w = 100, h = 10 } end
+                        return {}
+                    end,
+                }
+            end
+            state.children = { field(20), field(50) }
+            ph.open()
+            state.windows = { state.win }
+            tick()
+            assert.is_true(ph.onKey("down", false))
+            assert.is_true(ph.onKey("down", false))
+            assert.is_true(ph.onKey("return", false))
+            -- clicks[1] is the menu bar item that opened the popover; then the field, then the close click
+            assert.are.same({ x = 50, y = 55 }, clicks[2])
+            assert.are.equal(3, #clicks)
         end)
 
         it("never consumes keys with modifiers", function()

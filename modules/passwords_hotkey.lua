@@ -53,13 +53,26 @@ local function popoverWindow()
     return app and (hs.axuielement.applicationElement(app):attributeValue("AXWindows") or {})[1]
 end
 
---- Returns the popover result rows (empty when there is no outline, e.g. no search results) and its
--- window frame, or nil when the popover is closed.
+--- Collects the copyable fields of the item detail screen (username, password...) in screen order.
+-- Clicking one of them copies its value.
+local function findFields(el, found)
+    for _, c in ipairs(el:attributeValue("AXChildren") or {}) do
+        local copyable = hs.fnutils.contains(c:actionNames() or {}, "AXShowMenu")
+        if copyable and c:attributeValue("AXRole") == "AXStaticText" then
+            found[#found + 1] = c
+        end
+        findFields(c, found)
+    end
+    return found
+end
+
+--- Returns the navigable rows (list rows, or detail fields when there is no list; empty when there is
+-- nothing, e.g. no search results) and the window frame, or nil when the popover is closed.
 local function popoverRows()
     local win = popoverWindow()
     if not win then return nil end
     local outline = findOutline(win)
-    return (outline and outline:attributeValue("AXRows")) or {}, win:attributeValue("AXFrame")
+    return (outline and outline:attributeValue("AXRows")) or findFields(win, {}), win:attributeValue("AXFrame")
 end
 
 --- Moves an index by delta, clamped to 1..count (the first Down from no selection lands on row 1).
@@ -120,18 +133,23 @@ local function firstButton(el)
     end
 end
 
---- Opens the highlighted row (same as clicking it).
+--- Clicks the highlighted row: opens a list item, or copies a detail field.
 local function enterRow()
     local row = currentRow()
     if not row then return false end
     return clickElement(row)
 end
 
+--- True on the item detail screen: no list, but copyable fields (an empty search has neither).
+local function inDetail()
+    local win = popoverWindow()
+    return win ~= nil and findOutline(win) == nil and #findFields(win, {}) > 0
+end
+
 --- Goes back from the item detail screen. The list screen has an outline, the detail screen does not.
 local function goBack()
-    local win = popoverWindow()
-    if not win or findOutline(win) then return false end
-    local button = firstButton(win)
+    if not inDetail() then return false end
+    local button = firstButton(popoverWindow())
     return button ~= nil and button:performAction("AXPress") ~= nil
 end
 
@@ -149,14 +167,26 @@ local handlers = {
     up = function() return move(-1) end,
     -- Right opens the highlighted item and Left goes back to the list; navigation stays on for both.
     right = function()
-        if not enterRow() then return false end
+        if inDetail() or not enterRow() then return false end
         nav.idx = 0
         return true
     end,
-    left = goBack,
+    left = function()
+        if not goBack() then return false end
+        nav.idx = 0
+        return true
+    end,
+    -- Return opens the highlighted list item; on the detail screen it copies the highlighted field
+    -- and closes the popover.
     ["return"] = function()
+        local detail = inDetail()
         if not enterRow() then return false end
-        stopNav()
+        if detail then
+            closePopover()
+            stopNav()
+        else
+            nav.idx = 0
+        end
         return true
     end,
     escape = function()
@@ -196,7 +226,8 @@ local function startNav()
     nav = { tap = tap, canvas = canvas, idx = 0,
             watch = hs.timer.doEvery(0.3, function()
                 local open = popoverWindow() ~= nil
-                if open and not seen then tap:start() end
+                -- macOS disables a tap whose callback runs too long; turn it back on.
+                if open and not tap:isEnabled() then tap:start() end
                 seen = seen or open
                 misses = open and 0 or misses + 1
                 if misses >= 10 or (seen and not open) then return stopNav() end

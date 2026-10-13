@@ -99,7 +99,7 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 - **`auto_brightness.lua`**: Uses battery watcher to set brightness based on power source.
 - **`window_cycle.lua`**: Cycles through current app’s windows.
 - **`launchpad_hotkey.lua`**: Hotkey to open Launchpad.
-- **`passwords_hotkey.lua`**: Hotkey to open the Passwords quick-access popover. While it is open, Up/Down highlight a row, Right or Return open it, Left goes back and Escape closes the popover.
+- **`passwords_hotkey.lua`**: Hotkey to open the Passwords quick-access popover. While it is open, Up/Down highlight a row, Right or Return open it, Left goes back and Escape closes the popover. On the item screen Up/Down walk the fields and Return copies the highlighted one and closes the popover.
 - **`refresh_hotkey.lua`**: Hotkey to clear browser storage (Safari/Chrome), clear cache, and reload. Storage clearing requires "Allow JavaScript from Apple Events" enabled in Safari's/Chrome's Develop (or View > Developer) menu; without it, it silently falls back to cache+reload only. **Limitation**: this only clears storage/cookies reachable from page JavaScript. Session cookies flagged `HttpOnly` (the norm for the actual login cookie on most sites, e.g. Instagram's `sessionid`) are invisible to `document.cookie` by browser design, so this hotkey will _not_ force a logout on such sites — it's meant for clearing dev-visible state (localStorage, sessionStorage, IndexedDB, Cache Storage, non-HttpOnly cookies), not for a full "remove all site data".
 - **`tab_navigation.lua`**: Chooser for Safari tabs.
 - **`app_navigation.lua`**: Chooser for running apps.
