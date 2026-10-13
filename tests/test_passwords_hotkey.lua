@@ -90,7 +90,7 @@ describe("passwords_hotkey", function()
     end)
 
     describe("arrow navigation", function()
-        local ph, tick, started, stopped, state
+        local ph, tick, later, started, stopped, state
 
         before_each(function()
             package.loaded["../modules/passwords_hotkey"] = nil
@@ -116,7 +116,8 @@ describe("passwords_hotkey", function()
                                           stop = function() stopped = stopped + 1 end } end,
                 leftClick = function() end, event = { types = {} } }
             hs.mouse = { absolutePosition = function() return { x = 0, y = 0 } end }
-            hs.timer = { doEvery = function(_, fn) tick = fn; return { stop = function() end } end }
+            hs.timer = { doEvery = function(_, fn) tick = fn; return { stop = function() end } end,
+                         doAfter = function(_, fn) later = fn; return {} end }
             state.win = win
         end)
 
@@ -167,8 +168,10 @@ describe("passwords_hotkey", function()
             assert.is_true(ph.onKey("down", false))
             assert.is_true(ph.onKey("down", false))
             assert.is_true(ph.onKey("return", false))
-            -- clicks[1] is the menu bar item that opened the popover; then the field, then the close click
+            -- clicks[1] is the menu bar item that opened the popover, then the field
             assert.are.same({ x = 50, y = 55 }, clicks[2])
+            assert.are.equal(2, #clicks)
+            later() -- the popover closes only after the copy click had time to land
             assert.are.equal(3, #clicks)
         end)
 

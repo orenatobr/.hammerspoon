@@ -11,6 +11,9 @@ local M = {}
 local BUNDLE_ID = "com.apple.Passwords.MenuBarExtra"
 local EXTRA_PATH = "/System/Applications/Passwords.app/Contents/Library/LoginItems/PasswordsMenuBarExtra.app"
 
+local COPY_DELAY = 0.3
+local DETAIL_DELAY = 0.1
+local DETAIL_POLLS = 15
 local RETRIES = 10
 local RETRY_DELAY = 0.3
 
@@ -161,6 +164,25 @@ local function closePopover()
     return true
 end
 
+--- Lets the copy click land, then closes the popover.
+local function finishCopy()
+    hs.timer.doAfter(COPY_DELAY, closePopover)
+end
+
+--- Waits for the detail screen to load, clicks its password field (the masked one, else the last) and closes.
+local function copyPasswordWhenReady(tries)
+    if inDetail() then
+        local fields = findFields(popoverWindow(), {})
+        local target = fields[#fields]
+        for _, f in ipairs(fields) do
+            if tostring(f:attributeValue("AXValue")):find("^•") then target = f end
+        end
+        if target and clickElement(target) then finishCopy() end
+    elseif tries > 0 then
+        hs.timer.doAfter(DETAIL_DELAY, function() copyPasswordWhenReady(tries - 1) end)
+    end
+end
+
 -- Key handlers: return true to consume the key, false to let it through to the focused app.
 local handlers = {
     down = function() return move(1) end,
@@ -176,17 +198,17 @@ local handlers = {
         nav.idx = 0
         return true
     end,
-    -- Return opens the highlighted list item; on the detail screen it copies the highlighted field
-    -- and closes the popover.
+    -- Return copies: on a list item it opens it and copies its password, on the detail screen it copies the
+    -- highlighted field. Either way the popover closes afterwards.
     ["return"] = function()
         local detail = inDetail()
         if not enterRow() then return false end
         if detail then
-            closePopover()
-            stopNav()
+            finishCopy()
         else
-            nav.idx = 0
+            copyPasswordWhenReady(DETAIL_POLLS)
         end
+        stopNav()
         return true
     end,
     escape = function()
