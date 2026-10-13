@@ -8,12 +8,11 @@ local busted = require('busted')
 local passwords_hotkey = require('../modules/passwords_hotkey')
 
 describe("passwords_hotkey", function()
-    it("binds Alt+P", function()
-        local mods, key
-        hs.hotkey.bind = function(m, k) mods, key = m, k end
+    it("binds Alt+P and the Ctrl+Alt+P Secure Input fallback", function()
+        local bound = {}
+        hs.hotkey.bind = function(m, k) bound[#bound + 1] = { m, k } end
         passwords_hotkey.bindHotkey()
-        assert.are.same({"alt"}, mods)
-        assert.are.equal("P", key)
+        assert.are.same({ { {"alt"}, "P" }, { {"ctrl", "alt"}, "P" } }, bound)
     end)
 
     it("clicks the center of the menu bar item and restores the mouse", function()

@@ -84,7 +84,7 @@ For more details, see the [Getting Started guide](https://www.hammerspoon.org/go
 | --------- | ----------------------- | -------------------------------------------------------------------- |
 | `Alt + C` | `window_cycle.lua`      | Cycle through the current app’s standard/visible windows.            |
 | `Alt + A` | `launchpad_hotkey.lua`  | Open Launchpad.                                                      |
-| `Alt + P` | `passwords_hotkey.lua`  | Open the Passwords (Senhas) quick-access popover.                    |
+| `Alt + P` | `passwords_hotkey.lua`  | Open Passwords popover. `Ctrl + Alt + P` works under Secure Input.   |
 | `Alt + R` | `refresh_hotkey.lua`    | Clear storage (Safari/Chrome), clear cache, then reload after 1s.    |
 | `Alt + S` | `tab_navigation.lua`    | Open chooser of **Safari** tabs (title + URL) and jump to selection. |
 | `Alt + Z` | `app_navigation.lua`    | Open chooser of **running apps** with icons; activate selection.     |

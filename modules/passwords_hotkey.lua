@@ -2,7 +2,7 @@
 -- luacheck: max line length 120
 -- ~/.hammerspoon/modules/passwords_hotkey.lua
 -- Module: passwords_hotkey
--- Purpose: Binds Alt+P to open the Passwords quick-access popover (menu bar extra).
+-- Purpose: Binds Alt+P (and Ctrl+Alt+P as Secure Input fallback) to open the Passwords popover.
 -- Usage: require this module and call M.bindHotkey().
 
 local M = {}
@@ -59,8 +59,12 @@ function M.open()
 end
 
 --- Binds Alt+P to open the Passwords quick-access popover.
+-- Ctrl+Alt+P is a fallback: while a terminal has Secure Keyboard Entry on (e.g. at a sudo/ssh
+-- password prompt) macOS drops Option-only hotkeys, but hotkeys with Ctrl or Cmd still arrive.
 function M.bindHotkey()
-    hs.hotkey.bind({"alt"}, "P", function() M.open() end)
+    local function open() M.open() end
+    hs.hotkey.bind({"alt"}, "P", open)
+    hs.hotkey.bind({"ctrl", "alt"}, "P", open)
 end
 
 return M
