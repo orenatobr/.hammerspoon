@@ -12,6 +12,8 @@ local BUNDLE_ID = "com.apple.Passwords.MenuBarExtra"
 local EXTRA_PATH = "/System/Applications/Passwords.app/Contents/Library/LoginItems/PasswordsMenuBarExtra.app"
 
 local COPY_DELAY = 0.3
+local MENU_TIMEOUT = 0.3
+local MENU_OFFSET = 100
 local DETAIL_DELAY = 0.1
 local DETAIL_POLLS = 15
 local RETRIES = 10
@@ -164,6 +166,27 @@ local function closePopover()
     return true
 end
 
+--- True for the masked password field: clicking it only reveals the value, copying needs its menu.
+local function isMasked(field)
+    return tostring(field:attributeValue("AXValue")):find("^•") ~= nil
+end
+
+--- Copies a detail field. Plain fields copy on click; the masked one opens its "copy" menu, which pops up
+-- at a fixed spot inside the popover (not under the field), and that menu item is clicked.
+-- @return boolean False when the field could not be copied.
+local function copyField(field)
+    if not isMasked(field) then return clickElement(field) end
+    local win = popoverWindow()
+    local f = win and win:attributeValue("AXFrame")
+    if not f then return false end
+    field:setTimeout(MENU_TIMEOUT) -- the call blocks while the menu is open
+    field:performAction("AXShowMenu")
+    local mouse = hs.mouse.absolutePosition()
+    hs.eventtap.leftClick({ x = f.x + MENU_OFFSET, y = f.y + MENU_OFFSET })
+    hs.mouse.absolutePosition(mouse)
+    return true
+end
+
 --- Lets the copy click land, then closes the popover.
 local function finishCopy()
     hs.timer.doAfter(COPY_DELAY, closePopover)
@@ -175,9 +198,9 @@ local function copyPasswordWhenReady(tries)
         local fields = findFields(popoverWindow(), {})
         local target = fields[#fields]
         for _, f in ipairs(fields) do
-            if tostring(f:attributeValue("AXValue")):find("^•") then target = f end
+            if isMasked(f) then target = f end
         end
-        if target and clickElement(target) then finishCopy() end
+        if target and copyField(target) then finishCopy() end
     elseif tries > 0 then
         hs.timer.doAfter(DETAIL_DELAY, function() copyPasswordWhenReady(tries - 1) end)
     end
@@ -201,11 +224,12 @@ local handlers = {
     -- Return copies: on a list item it opens it and copies its password, on the detail screen it copies the
     -- highlighted field. Either way the popover closes afterwards.
     ["return"] = function()
-        local detail = inDetail()
-        if not enterRow() then return false end
-        if detail then
+        if inDetail() then
+            local row = currentRow()
+            if not row or not copyField(row) then return false end
             finishCopy()
         else
+            if not enterRow() then return false end
             copyPasswordWhenReady(DETAIL_POLLS)
         end
         stopNav()
