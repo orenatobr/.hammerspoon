@@ -14,6 +14,7 @@ local modules = {
     "launchpad_hotkey",
     "refresh_hotkey",
     "passwords_hotkey",
+    "move_window_space",
     "safari_window_manager",
     "tab_navigation",
     "teams_focus_restore",

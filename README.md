@@ -80,15 +80,16 @@ For more details, see the [Getting Started guide](https://www.hammerspoon.org/go
 
 ## Hotkeys
 
-| Hotkey    | Module                  | Action                                                               |
-| --------- | ----------------------- | -------------------------------------------------------------------- |
-| `Alt + C` | `window_cycle.lua`      | Cycle through the current app’s standard/visible windows.            |
-| `Alt + A` | `launchpad_hotkey.lua`  | Open Launchpad.                                                      |
-| `Alt + P` | `passwords_hotkey.lua`  | Open Passwords popover. `Ctrl + Alt + P` works under Secure Input.   |
-| `Alt + R` | `refresh_hotkey.lua`    | Clear storage (Safari/Chrome), clear cache, then reload after 1s.    |
-| `Alt + S` | `tab_navigation.lua`    | Open chooser of **Safari** tabs (title + URL) and jump to selection. |
-| `Alt + Z` | `app_navigation.lua`    | Open chooser of **running apps** with icons; activate selection.     |
-| `Alt + F` | `relaunch_terminal.lua` | Relaunch the active integrated terminal in VS Code.                  |
+| Hotkey                | Module                  | Action                                                               |
+| --------------------- | ----------------------- | -------------------------------------------------------------------- |
+| `Alt + C`             | `window_cycle.lua`      | Cycle through the current app’s standard/visible windows.            |
+| `Alt + A`             | `launchpad_hotkey.lua`  | Open Launchpad.                                                      |
+| `Alt + P`             | `passwords_hotkey.lua`  | Open Passwords popover. `Ctrl + Alt + P` works under Secure Input.   |
+| `Alt + →` / `Alt + ←` | `move_window_space.lua` | Send the focused window to the next/previous Space and follow it.    |
+| `Alt + R`             | `refresh_hotkey.lua`    | Clear storage (Safari/Chrome), clear cache, then reload after 1s.    |
+| `Alt + S`             | `tab_navigation.lua`    | Open chooser of **Safari** tabs (title + URL) and jump to selection. |
+| `Alt + Z`             | `app_navigation.lua`    | Open chooser of **running apps** with icons; activate selection.     |
+| `Alt + F`             | `relaunch_terminal.lua` | Relaunch the active integrated terminal in VS Code.                  |
 
 > You can change any hotkey inside each module’s `hs.hotkey.bind({...}, "KEY", ...)`.
 
@@ -100,6 +101,7 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 - **`window_cycle.lua`**: Cycles through current app’s windows.
 - **`launchpad_hotkey.lua`**: Hotkey to open Launchpad.
 - **`passwords_hotkey.lua`**: Hotkey to open the Passwords quick-access popover. While it is open, Up/Down highlight a row, Right opens it, Return copies its password and closes the popover, Left goes back and Escape closes the popover. On the item screen Up/Down walk the fields and Return copies the highlighted one and closes the popover.
+- **`move_window_space.lua`**: Alt+Right / Alt+Left move the focused window to the adjacent Space on its screen and switch to it. Fullscreen windows cannot be moved.
 - **`refresh_hotkey.lua`**: Hotkey to clear browser storage (Safari/Chrome), clear cache, and reload. Storage clearing requires "Allow JavaScript from Apple Events" enabled in Safari's/Chrome's Develop (or View > Developer) menu; without it, it silently falls back to cache+reload only. **Limitation**: this only clears storage/cookies reachable from page JavaScript. Session cookies flagged `HttpOnly` (the norm for the actual login cookie on most sites, e.g. Instagram's `sessionid`) are invisible to `document.cookie` by browser design, so this hotkey will _not_ force a logout on such sites — it's meant for clearing dev-visible state (localStorage, sessionStorage, IndexedDB, Cache Storage, non-HttpOnly cookies), not for a full "remove all site data".
 - **`tab_navigation.lua`**: Chooser for Safari tabs.
 - **`app_navigation.lua`**: Chooser for running apps.
@@ -144,6 +146,7 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 │   ├── filezilla_caffeinate.lua
 │   ├── google_meet_window_manager.lua
 │   ├── launchpad_hotkey.lua
+│   ├── move_window_space.lua
 │   ├── passwords_hotkey.lua
 │   ├── refresh_hotkey.lua
 │   ├── safari_window_manager.lua
