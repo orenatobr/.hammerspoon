@@ -54,11 +54,13 @@ local function moveFocusedWindow(step, polls)
     local win = hs.window.focusedWindow()
     if not win or win:isFullScreen() then
         log("no movable window focused (none, or fullscreen)")
+        hs.alert.show("Can’t move this window (none focused, or fullscreen)")
         return
     end
     local i, spaces = spaceIndex(win)
     if not i or not spaces[i + step] then
         log(string.format("no Space to move to (step %d, index %s)", step, tostring(i)))
+        hs.alert.show(i and "No Space in that direction" or "⚠️ Couldn’t read this window’s Space")
         return
     end
     local before = spaces[i]

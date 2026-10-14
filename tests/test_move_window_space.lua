@@ -119,16 +119,18 @@ describe("move_window_space", function()
         assert.equals("right", log[4].key)
     end)
 
-    it("does nothing at the edge", function()
+    it("does nothing but alert at the edge", function()
         hs.spaces.windowSpaces = function() return {30} end
         press("right")
         assert.same({}, log)
+        assert.equals(1, #alerts)
     end)
 
     it("does nothing for fullscreen windows", function()
         win.isFullScreen = function() return true end
         press("right")
         assert.same({}, log)
+        assert.equals(1, #alerts)
     end)
 
     it("does nothing without a focused window", function()
