@@ -9,6 +9,8 @@
 local M = {}
 
 local GRAB_DELAY = 0.15 -- seconds between mouse-down, drag and the Space shortcut
+local POLL_DELAY = 0.02 -- seconds between checks for the Option key being released
+local MAX_POLLS = 100 -- give up waiting for Option release after ~2s
 local RELEASE_DELAY = 1.0 -- seconds to let the Space animation finish before releasing the title bar
 
 --- Returns the window's index among its screen's Spaces, and that list.
@@ -34,7 +36,16 @@ end
 -- hs.spaces.moveWindowToSpace/gotoSpace are silently ignored on recent macOS, so the window
 -- is held by its title bar while the "Move right/left a space" shortcut (Ctrl+Arrow, needs
 -- the fn flag) carries it along.
-local function moveFocusedWindow(step)
+local function moveFocusedWindow(step, polls)
+    polls = polls or 0
+    -- Option still held would turn Ctrl+Arrow into Option+Ctrl+Arrow, which macOS ignores,
+    -- and make the title-bar click an Option-click. Wait for the release.
+    if hs.eventtap.checkKeyboardModifiers().alt then
+        if polls < MAX_POLLS then
+            hs.timer.doAfter(POLL_DELAY, function() moveFocusedWindow(step, polls + 1) end)
+        end
+        return
+    end
     local win = hs.window.focusedWindow()
     if not win or win:isFullScreen() then return end
     local i, spaces = spaceIndex(win)

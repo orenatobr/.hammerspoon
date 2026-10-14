@@ -37,6 +37,7 @@ describe("move_window_space", function()
         hs.eventtap.event.newMouseEvent = function(kind)
             return {post = function() table.insert(log, kind) end}
         end
+        hs.eventtap.checkKeyboardModifiers = function() return {} end
         hs.eventtap.keyStroke = function(mods, key) table.insert(log, {mods = mods, key = key}) end
     end)
 
@@ -54,6 +55,17 @@ describe("move_window_space", function()
     it("sends ctrl+fn+left for alt+left", function()
         press("left")
         assert.equals("left", log[4].key)
+    end)
+
+    it("waits for Option to be released before grabbing the window", function()
+        local held = 2
+        hs.eventtap.checkKeyboardModifiers = function()
+            held = held - 1
+            return held > 0 and {alt = true} or {}
+        end
+        press("right")
+        assert.equals("down", log[2])
+        assert.equals("right", log[4].key)
     end)
 
     it("does nothing at the edge", function()
