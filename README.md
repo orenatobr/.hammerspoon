@@ -31,7 +31,7 @@ For more details, see the [Getting Started guide](https://www.hammerspoon.org/go
 ### Apps
 
 - **Safari** (for tab switcher, AWS detector)
-- **Visual Studio Code** (for window placement)
+- **Visual Studio Code** or **Antigravity IDE** (for window placement and the IDE hotkeys)
 - **Microsoft Teams** (for presence keep-alive, focus restore)
 - **FileZilla** (for caffeinate)
 
@@ -63,7 +63,7 @@ For more details, see the [Getting Started guide](https://www.hammerspoon.org/go
 - **Safari tab switcher**: Fuzzy-pick any open Safari tab via chooser.
 - **App switcher (chooser)**: Fuzzy-pick any running app to focus.
 - **AWS Console account detector (Safari)**: Detects the current AWS account from the tab URL and shows a mapped label (e.g., `🔴 fsm-prod`).
-- **Safari & VS Code window placement**: Auto-move new/focused windows to a secondary display when available.
+- **Safari & VS Code / Antigravity IDE window placement**: Auto-move new/focused windows to a secondary display when available.
 - **Google Meet single-window enforcement**: Automatically closes duplicate Google Meet (Chrome App) windows, keeping only the one you just opened or focused.
 
 ### Presence & Power Helpers
@@ -88,7 +88,7 @@ For more details, see the [Getting Started guide](https://www.hammerspoon.org/go
 | `Alt + R` | `refresh_hotkey.lua`    | Clear storage (Safari/Chrome), clear cache, then reload after 1s.    |
 | `Alt + S` | `tab_navigation.lua`    | Open chooser of **Safari** tabs (title + URL) and jump to selection. |
 | `Alt + Z` | `app_navigation.lua`    | Open chooser of **running apps** with icons; activate selection.     |
-| `Alt + F` | `relaunch_terminal.lua` | Relaunch the active integrated terminal in VS Code.                  |
+| `Alt + F` | `relaunch_terminal.lua` | Relaunch the IDE terminal (VS Code / Antigravity IDE).               |
 
 > You can change any hotkey inside each module’s `hs.hotkey.bind({...}, "KEY", ...)`.
 
@@ -104,15 +104,16 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 - **`tab_navigation.lua`**: Chooser for Safari tabs.
 - **`app_navigation.lua`**: Chooser for running apps.
 - **`safari_window_manager.lua`**: Moves Safari windows to secondary display.
-- **`vscode_window_manager.lua`**: Moves VS Code windows to secondary display.
+- **`vscode_window_manager.lua`**: Moves VS Code / Antigravity IDE windows to secondary display.
 - **`google_meet_window_manager.lua`**: Closes duplicate Google Meet (Chrome App) windows, keeping only the most recently opened/focused one.
 - **`teams_focus_restore.lua`**: Restores focus to last useful Teams window.
 - **`teams_mouse.lua`**: Keeps Teams presence active with mouse jiggle.
 - **`filezilla_caffeinate.lua`**: Prevents display sleep while FileZilla is running.
 - **`auto_lock.lua`**: Triggers Bluetooth Shortcuts on lid state changes.
 - **`safari_pip_detector.lua`**: Detects Safari Picture-in-Picture (PIP) window and automatically moves it to the bottom-left of the internal screen. Continuously monitors for the PIP window and repositions it for optimal visibility. Useful for keeping Safari PIP out of the way and always in a predictable location. Integrates with the main config and requires Accessibility permissions.
-- **`reset_vscode.lua`**: Reloads the VS Code window and resets sidebar/panel sizes.
-- **`relaunch_terminal.lua`**: Relaunches the active integrated terminal in VS Code via its built-in Command Palette action ("Relaunch Active Terminal") — no custom `keybindings.json` required.
+- **`reset_vscode.lua`**: Reloads the VS Code / Antigravity IDE window and resets sidebar/panel sizes.
+- **`relaunch_terminal.lua`**: Relaunches the active integrated terminal in VS Code / Antigravity IDE via its built-in Command Palette action ("Relaunch Active Terminal") — no custom `keybindings.json` required.
+- **`ide_apps.lua`**: Shared detection of the supported editors (VS Code and Antigravity IDE), used by the three IDE modules.
 - **`init.lua`**: Loads all modules and binds hotkeys.
 
 ## Configuration and Troubleshooting

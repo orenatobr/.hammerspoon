@@ -89,7 +89,8 @@ describe("reset_vscode", function()
         it("should show an alert when VS Code is not running", function()
             local alertMsg = nil
             hs.alert.show = function(msg) alertMsg = msg end
-            hs.application.find = function() return nil end
+            hs.application.frontmostApplication = function() return nil end
+            hs.application.applicationsForBundleID = function() return {} end
 
             -- Capture the hotkey callback and invoke it directly
             local capturedFn = nil
@@ -109,7 +110,8 @@ describe("reset_vscode", function()
                 focusedWindow = function() return nil end,
                 allWindows    = function() return {} end,
             }
-            hs.application.find = function() return fakeApp end
+            fakeApp.bundleID = function() return "com.google.antigravity-ide" end
+            hs.application.frontmostApplication = function() return fakeApp end
 
             local capturedFn = nil
             hs.hotkey.bind = function(_mods, _key, fn) capturedFn = fn end

@@ -2,13 +2,15 @@
 -- luacheck: max line length 120
 -- modules/relaunch_terminal.lua
 -- Module: relaunch_terminal
--- Purpose: Relaunches the active integrated terminal in VS Code by
---          activating VS Code, opening the Command Palette, and running
+-- Purpose: Relaunches the active integrated terminal in VS Code or Antigravity IDE by
+--          activating the editor, opening the Command Palette, and running
 --          its built-in "Relaunch Active Terminal" command
 --          (workbench.action.terminal.relaunch). This command has no
 --          default keybinding, so it's invoked via the palette instead
 --          of a custom keybindings.json entry.
 -- Hotkey: Option + F
+
+local ide_apps = require("modules.ide_apps")
 
 local M = {}
 
@@ -27,12 +29,9 @@ local PALETTE_WAIT_SECS = 0.2 -- seconds to wait for the Command Palette to open
 
 --- Activate VS Code and relaunch its active integrated terminal.
 local function relaunchTerminal()
-    local app = hs.application.find("Code")
+    local app = ide_apps.find()
     if not app then
-        app = hs.application.find("Visual Studio Code")
-    end
-    if not app then
-        hs.alert.show("VS Code não encontrado")
+        hs.alert.show("VS Code / Antigravity IDE não encontrado")
         return
     end
 

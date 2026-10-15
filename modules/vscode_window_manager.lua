@@ -7,6 +7,8 @@
 -- Author: [Your Name]
 -- Last updated: 2025-09-19
 
+local ide_apps = require("modules.ide_apps")
+
 local M = {}
 
 local vscodeWindowFilter = nil
@@ -14,7 +16,7 @@ local vscodeWindowFilter = nil
 --- Moves a VSCode window to the secondary screen and resizes it to half width (right side).
 local function moveVSCodeWindow(win)
     if not win or not win:isStandard() then return end
-    if win:application():name() ~= "Code" then return end
+    if not ide_apps.isIDE(win:application()) then return end
     local allScreens = hs.screen.allScreens()
     if #allScreens < 2 then return end
     local primary = hs.screen.primaryScreen()
@@ -43,9 +45,10 @@ end
 
 --- Starts the VSCode window manager (moves new/focused windows to secondary screen).
 function M.start()
-    vscodeWindowFilter = hs.window.filter.new(false):setAppFilter("Code", {
-        allowRoles = "*"
-    })
+    vscodeWindowFilter = hs.window.filter.new(false)
+    for _, name in ipairs(ide_apps.APP_NAMES) do
+        vscodeWindowFilter:setAppFilter(name, {allowRoles = "*"})
+    end
     -- luacheck: ignore appName event
     vscodeWindowFilter:subscribe({hs.window.filter.windowCreated, hs.window.filter.windowFocused},
         function(win, appName, event)

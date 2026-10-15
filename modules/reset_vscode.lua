@@ -2,13 +2,15 @@
 -- luacheck: max line length 120
 -- modules/reset_vscode.lua
 -- Module: reset_vscode
--- Purpose: Reloads the VS Code window and resets the three main panel sizes to
+-- Purpose: Reloads the VS Code / Antigravity IDE window and resets the three main panel sizes to
 --          20% of the window dimensions by locating thin AXGroup sash handles
 --          via macOS Accessibility and dragging them with the mouse:
 --            • Left sidebar  (file explorer)   → 20 % of window width
 --            • Right sidebar (Copilot / aux)   → 20 % of window width
 --            • Bottom panel  (terminal)        → 20 % of window height
 -- Hotkey: Option + V
+
+local ide_apps = require("modules.ide_apps")
 
 local M = {}
 
@@ -240,12 +242,9 @@ end
 
 --- Reload VS Code and reset panel layout to TARGET_RATIO for all three panels.
 local function resetVSCode()
-    local app = hs.application.find("Code")
+    local app = ide_apps.find()
     if not app then
-        app = hs.application.find("Visual Studio Code")
-    end
-    if not app then
-        hs.alert.show("VS Code não encontrado")
+        hs.alert.show("VS Code / Antigravity IDE não encontrado")
         return
     end
 
@@ -258,10 +257,7 @@ local function resetVSCode()
 
         -- Wait for VS Code to finish reloading before interacting
         hs.timer.doAfter(RELOAD_WAIT_SECS, function()
-            local codeApp = hs.application.find("Code")
-            if not codeApp then
-                codeApp = hs.application.find("Visual Studio Code")
-            end
+            local codeApp = ide_apps.find()
             if not codeApp then return end
 
             codeApp:activate()
