@@ -19,6 +19,7 @@ local modules = {
     "teams_focus_restore",
     "vscode_window_manager",
     "window_cycle",
+    "ide_apps",
     "reset_vscode",
     "relaunch_terminal"
 }

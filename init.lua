@@ -68,9 +68,9 @@ local googleMeetWindowManager = require("modules.google_meet_window_manager")
 
 autoBrightness.start()
 keepalive.start({
-    app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla", "Code"},
+    app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla", "Code", "Antigravity IDE"},
     bundle_ids = {"com.microsoft.teams2", "com.microsoft.teams", "org.filezilla-project.filezilla",
-                  "com.microsoft.VSCode"}
+                  "com.microsoft.VSCode", "com.google.antigravity-ide"}
 })
 autoLock.start()
 lidAudioMute.start()
@@ -81,7 +81,7 @@ autoFullscreen.start({
     native_fullscreen = false,
     internal_hint = "Built%-in",
     exclude_apps = {"Terminal", "iTerm2"},
-    maximize_only_apps = {"Code", "Safari", "FileZilla", "Microsoft Teams", "zoom.us"},
+    maximize_only_apps = {"Code", "Antigravity IDE", "Safari", "FileZilla", "Microsoft Teams", "zoom.us"},
     screens_settle_seconds = 2.0,
     quarantine_seconds = 12.0
 })

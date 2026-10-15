@@ -71,7 +71,8 @@ describe("relaunch_terminal", function()
         it("should show an alert when VS Code is not running", function()
             local alertMsg = nil
             hs.alert.show = function(msg) alertMsg = msg end
-            hs.application.find = function() return nil end
+            hs.application.frontmostApplication = function() return nil end
+            hs.application.applicationsForBundleID = function() return {} end
 
             -- Capture the hotkey callback and invoke it directly
             local capturedFn = nil
@@ -89,7 +90,8 @@ describe("relaunch_terminal", function()
             local fakeApp = {
                 activate = function() activated = true end,
             }
-            hs.application.find = function() return fakeApp end
+            fakeApp.bundleID = function() return "com.google.antigravity-ide" end
+            hs.application.frontmostApplication = function() return fakeApp end
 
             local strokes = {}
             hs.eventtap.keyStroke = function(mods, key)

@@ -12,11 +12,11 @@ local MAX_IDLE_TIME = 120      -- Sincronizado com o timer de sleep padrão do s
 
 -- Target apps (names and/or bundle IDs)
 M.config = {
-    app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla", "Code"},
+    app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla", "Code", "Antigravity IDE"},
     bundle_ids = {
         "com.microsoft.teams2", "com.microsoft.teams",
-        "org.filezilla-project.filezilla", "com.microsoft.VSCode"
-    } -- new+classic Teams, FileZilla, VSCode
+        "org.filezilla-project.filezilla", "com.microsoft.VSCode", "com.google.antigravity-ide"
+    } -- new+classic Teams, FileZilla, VSCode, Antigravity IDE
 }
 
 -- ===== Internal State =====
