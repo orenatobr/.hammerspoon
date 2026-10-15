@@ -116,6 +116,10 @@ Each feature is implemented as a separate Lua module in the `modules/` directory
 - **`ide_apps.lua`**: Shared detection of the supported editors (VS Code and Antigravity IDE), used by the three IDE modules.
 - **`init.lua`**: Loads all modules and binds hotkeys.
 
+## Releases
+
+Versions follow [SemVer](https://semver.org/) and are tracked in [`VERSION.md`](VERSION.md); history lives in [`CHANGELOG.md`](CHANGELOG.md). Run `scripts/bump.sh` to prepare a release; pushing the `vX.Y.Z` tag publishes it. The full process is in `VERSION.md`.
+
 ## Configuration and Troubleshooting
 
 - **Change hotkeys**: Edit the `hs.hotkey.bind` calls inside each module.
