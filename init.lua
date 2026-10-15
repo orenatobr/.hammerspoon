@@ -56,32 +56,27 @@ local teamsFocus = require("modules.teams_focus_restore")
 local refreshPage = require("modules.refresh_hotkey")
 local passwordsHotkey = require("modules.passwords_hotkey")
 -- local safariManager = require("modules.safari_window_manager")
--- local vscodeManager = require("modules.vscode_window_manager")
 local tabNavigation = require("modules.tab_navigation")
 local appNavigation = require("modules.app_navigation")
 local lockScreen = require("modules.lock_screen")
 local autoFullscreen = require("modules.auto_fullscreen")
 local cmdDAndCmd4 = require("modules.cmd_d_and_4")
-local resetVSCode = require("modules.reset_vscode")
-local relaunchTerminal = require("modules.relaunch_terminal")
 local googleMeetWindowManager = require("modules.google_meet_window_manager")
 
 autoBrightness.start()
 keepalive.start({
-    app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla", "Code"},
-    bundle_ids = {"com.microsoft.teams2", "com.microsoft.teams", "org.filezilla-project.filezilla",
-                  "com.microsoft.VSCode"}
+    app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla"},
+    bundle_ids = {"com.microsoft.teams2", "com.microsoft.teams", "org.filezilla-project.filezilla"}
 })
 autoLock.start()
 lidAudioMute.start()
 teamsFocus.start()
 -- safariManager.start()
--- vscodeManager.start()
 autoFullscreen.start({
     native_fullscreen = false,
     internal_hint = "Built%-in",
     exclude_apps = {"Terminal", "iTerm2"},
-    maximize_only_apps = {"Code", "Safari", "FileZilla", "Microsoft Teams", "zoom.us"},
+    maximize_only_apps = {"Safari", "FileZilla", "Microsoft Teams", "zoom.us"},
     screens_settle_seconds = 2.0,
     quarantine_seconds = 12.0
 })
@@ -95,8 +90,6 @@ tabNavigation.bindHotkey()
 lockScreen.bindHotkey()
 appNavigation.bindHotkey()
 cmdDAndCmd4.bindHotkey()
-resetVSCode.bindHotkey()
-relaunchTerminal.bindHotkey()
 
 print("✅ Hammerspoon Productivity Toolkit initialized.")
 hs.alert.show("🎉 All automations active")

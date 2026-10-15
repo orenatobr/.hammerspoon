@@ -17,10 +17,7 @@ local modules = {
     "safari_window_manager",
     "tab_navigation",
     "teams_focus_restore",
-    "vscode_window_manager",
-    "window_cycle",
-    "reset_vscode",
-    "relaunch_terminal"
+    "window_cycle"
 }
 for _, name in ipairs(modules) do
     require("modules." .. name)
