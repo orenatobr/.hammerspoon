@@ -1,0 +1,30 @@
+name: Config CI
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'config/**', '.github/workflows/fork-config-ci.yml' ]
+  pull_request:
+    paths: [ 'config/**', '.github/workflows/fork-config-ci.yml' ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: '5.3'
+      - uses: leafo/gh-actions-luarocks@v4
+      - name: Install test tooling
+        run: |
+          luarocks install busted 2.3.0-1
+          luarocks install luacheck 1.2.0-1
+      - name: Run busted
+        working-directory: config
+        run: busted tests/ --pattern='test_.*.lua'
+      - name: Run luacheck
+        working-directory: config
+        run: luacheck modules

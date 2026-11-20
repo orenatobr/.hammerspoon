@@ -1,0 +1,34 @@
+-- luacheck: globals describe it assert
+-- Ensure package.path includes the modules directory for correct resolution
+local project_root = debug.getinfo(1, "S").source:match("^@(.*/).*") or "./"
+package.path = project_root .. "modules/?.lua;" .. package.path
+
+local modules = {
+    "app_navigation",
+    "auto_brightness",
+    "auto_fullscreen",
+    "auto_lock",
+    "google_meet_window_manager",
+    "idle_keepalive",
+    "lid_audio_mute",
+    "launchpad_hotkey",
+    "refresh_hotkey",
+    "passwords_hotkey",
+    "safari_window_manager",
+    "tab_navigation",
+    "teams_focus_restore",
+    "vscode_window_manager",
+    "window_cycle",
+    "ide_apps",
+    "reset_vscode",
+    "relaunch_terminal"
+}
+for _, name in ipairs(modules) do
+    require("modules." .. name)
+end
+
+describe("all modules required", function()
+    it("should require all modules for coverage", function()
+        assert.is_true(true)
+    end)
+end)

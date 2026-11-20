@@ -1,0 +1,279 @@
+
+-- luacheck: globals hs
+local M = {}
+
+-- ===== Configuration =====
+-- O módulo já usa hs.caffeinate.set para bloquear o sleep (abordagem correta).
+-- Mouse jiggle e scroll events são redundantes quando caffeinate está ativo.
+-- Intervalo de 15s era desnecessariamente agressivo — 60s é suficiente como fallback.
+local ACTIVITY_INTERVAL = 60  -- Fallback de atividade a cada 60 segundos
+local MOUSE_JIGGLE_PIXELS = 1  -- Tiny mouse movement (almost unnoticeable)
+local MAX_IDLE_TIME = 120      -- Sincronizado com o timer de sleep padrão do sistema
+
+-- Target apps (names and/or bundle IDs)
+M.config = {
+    app_names = {"Microsoft Teams", "Zoom", "Slack", "FileZilla", "Code", "Antigravity IDE"},
+    bundle_ids = {
+        "com.microsoft.teams2", "com.microsoft.teams",
+        "org.filezilla-project.filezilla", "com.microsoft.VSCode", "com.google.antigravity-ide"
+    } -- new+classic Teams, FileZilla, VSCode, Antigravity IDE
+}
+
+-- ===== Internal State =====
+local _activityTimer = nil
+local _appWatcher = nil
+local _caffeinateWatcher = nil
+local _lidClosed = false
+
+-- ===== Helper Functions =====
+
+--- Returns true if the given app matches any target name or bundle ID
+local function appIsTarget(app)
+    if not app then return false end
+
+    local name = app:name() or ""
+    local bundle = app:bundleID() or ""
+
+    for _, targetName in ipairs(M.config.app_names) do
+        if name == targetName then return true end
+    end
+    for _, targetBundle in ipairs(M.config.bundle_ids) do
+        if bundle == targetBundle then return true end
+    end
+    return false
+end
+
+--- Returns true if any target app is currently running
+local function targetsRunningNow()
+    for _, app in ipairs(hs.application.runningApplications()) do
+        if appIsTarget(app) then
+            return true
+        end
+    end
+    return false
+end
+
+--- Performs tiny mouse jiggle (almost invisible)
+local function performMouseJiggle()
+    local currentPos = hs.mouse.absolutePosition()
+
+    -- Move mouse by 1 pixel
+    hs.mouse.absolutePosition({
+        x = currentPos.x + MOUSE_JIGGLE_PIXELS,
+        y = currentPos.y
+    })
+
+    -- Move it back after a brief delay
+    hs.timer.doAfter(0.05, function()
+        hs.mouse.absolutePosition(currentPos)
+    end)
+end
+
+--- Simulates keyboard activity using safer method
+local function performKeyboardActivity()
+    -- Use scroll wheel event instead of problematic key events
+    -- This registers as user activity without affecting anything
+    local scrollEvent = hs.eventtap.event.newScrollEvent({0, 0}, {}, "pixel")
+    if scrollEvent then
+        scrollEvent:post()
+    end
+end
+
+--- Main activity simulation function
+local function simulateActivity()
+    if not targetsRunningNow() then
+        return -- No target apps running
+    end
+
+    hs.caffeinate.set('systemIdle', true, true)
+
+    if _lidClosed then
+        hs.caffeinate.set('displayIdle', false, true)
+        return
+    end
+
+    local idleTime = hs.host.idleTime()
+
+    hs.caffeinate.set('displayIdle', true, true)
+
+    -- If idle time is approaching the threshold, simulate activity
+    if idleTime >= MAX_IDLE_TIME then
+        -- Alternate between mouse and keyboard activity
+        if math.random() > 0.5 then
+            performMouseJiggle()
+            print(string.format("🖱️ Mouse jiggle (idle: %ds)", math.floor(idleTime)))
+        else
+            performKeyboardActivity()
+            print(string.format("🛞 Scroll activity (idle: %ds)", math.floor(idleTime)))
+        end
+    end
+end
+
+local function clearSleepAssertions()
+    hs.caffeinate.set('displayIdle', false, true)
+    hs.caffeinate.set('systemIdle', false, true)
+end
+
+local function applySleepAssertions()
+    if not targetsRunningNow() then
+        clearSleepAssertions()
+        return
+    end
+
+    hs.caffeinate.set('systemIdle', true, true)
+    hs.caffeinate.set('displayIdle', not _lidClosed, true)
+end
+
+--- Starts the activity simulation timer
+local function startActivityTimer()
+    if _activityTimer then return end
+
+    _activityTimer = hs.timer.new(ACTIVITY_INTERVAL, simulateActivity)
+    _activityTimer:start()
+
+    applySleepAssertions()
+
+    -- Show visual notification
+    hs.alert.closeAll()
+    hs.alert.show("🛡️ Keep-Alive ON")
+
+    print(string.format("⏱️ Aggressive keep-alive started (activity every %ds, max idle %ds)",
+                       ACTIVITY_INTERVAL, MAX_IDLE_TIME))
+end
+
+--- Stops the activity simulation timer
+local function stopActivityTimer()
+    if _activityTimer then
+        _activityTimer:stop()
+        _activityTimer = nil
+
+        -- Show visual notification
+        hs.alert.closeAll()
+        hs.alert.show("💤 Keep-Alive OFF")
+
+        print("⏹️ Aggressive keep-alive stopped")
+    end
+
+    clearSleepAssertions()
+end
+
+--- Handles app launch/terminate events
+local function handleAppEvent(_appName, eventType, _appObject)
+    if eventType == hs.application.watcher.launched or
+       eventType == hs.application.watcher.terminated then
+
+        if targetsRunningNow() then
+            applySleepAssertions()
+            startActivityTimer()
+        else
+            stopActivityTimer()
+        end
+    end
+end
+
+--- Handles system sleep/wake/lock events
+local function handleCaffeinateEvent(eventType)
+    if eventType == hs.caffeinate.watcher.screensDidLock then
+        print("🔒 Screen locked - aggressive keep-alive continues")
+
+    elseif eventType == hs.caffeinate.watcher.screensDidUnlock then
+        print("🔓 Screen unlocked - aggressive keep-alive continues")
+
+    elseif eventType == hs.caffeinate.watcher.systemWillSleep then
+        -- Aggressively prevent sleep when target apps are running
+        if targetsRunningNow() then
+            print("🚫 BLOCKING system sleep - keeping apps available")
+            applySleepAssertions()
+            if not _lidClosed then
+                simulateActivity()
+            end
+        else
+            stopActivityTimer()
+            print("💤 Allowing system sleep - no target apps running")
+        end
+
+    elseif eventType == hs.caffeinate.watcher.systemDidWake then
+        if targetsRunningNow() then
+            startActivityTimer()
+            print("🌅 System woke up - aggressive keep-alive resumed")
+        end
+    end
+end
+
+-- ===== Public API =====
+
+--- Starts the aggressive keep-alive module
+function M.start(opts)
+    opts = opts or {}
+
+    -- Override config if provided
+    if opts.app_names then
+        M.config.app_names = opts.app_names
+    end
+    if opts.bundle_ids then
+        M.config.bundle_ids = opts.bundle_ids
+    end
+
+    -- Start watchers
+    if not _appWatcher then
+        _appWatcher = hs.application.watcher.new(handleAppEvent)
+        _appWatcher:start()
+    end
+
+    if not _caffeinateWatcher then
+        _caffeinateWatcher = hs.caffeinate.watcher.new(handleCaffeinateEvent)
+        _caffeinateWatcher:start()
+    end
+
+    -- Start aggressive activity simulation if target apps are already running
+    if targetsRunningNow() then
+        startActivityTimer()
+    end
+
+    print(string.format("✅ AGGRESSIVE idle_keepalive started - forcing %d apps to stay available",
+                       #M.config.app_names + #M.config.bundle_ids))
+end
+
+function M.setLidClosed(isClosed, reason)
+    local nextValue = not not isClosed
+    if _lidClosed == nextValue then
+        return
+    end
+
+    _lidClosed = nextValue
+    applySleepAssertions()
+    print(string.format("🖥️ Keep-alive lid mode: %s%s", _lidClosed and "closed" or "open",
+        reason and (" (" .. reason .. ")") or ""))
+end
+
+function M.isLidClosed()
+    return _lidClosed
+end
+
+--- Stops the aggressive keep-alive module
+function M.stop()
+    -- Stop activity timer
+    stopActivityTimer()
+    _lidClosed = false
+
+    -- Stop watchers
+    if _appWatcher then
+        _appWatcher:stop()
+        _appWatcher = nil
+    end
+
+    if _caffeinateWatcher then
+        _caffeinateWatcher:stop()
+        _caffeinateWatcher = nil
+    end
+
+    print("🛑 AGGRESSIVE idle_keepalive stopped")
+end
+
+-- For testing
+M._test_appIsTarget = appIsTarget
+M._test_targetsRunningNow = targetsRunningNow
+M._test_startActivityTimer = startActivityTimer
+M._test_simulateActivity = simulateActivity
+
+return M
