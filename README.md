@@ -12,7 +12,7 @@ The script installs `Hammerspoon.app` from the [latest release](https://github.c
 into `/Applications` and the config into `~/.hammerspoon` (an existing config is backed up first).
 The app is ad-hoc signed, not notarized: the script clears the quarantine flag, and you still need to grant Accessibility permission.
 
-The config modules and tests live in [`config/`](config/). Run the tests with `cd config && busted tests/`.
+See the [CHANGELOG](CHANGELOG.md) for release history. The config modules and tests live in [`config/`](config/). Run the tests with `cd config && busted tests/`.
 
 ---
 

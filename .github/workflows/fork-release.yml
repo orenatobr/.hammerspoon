@@ -1,11 +1,10 @@
 name: Fork release
 
 # Builds an ad-hoc signed Hammerspoon.app from this fork, bundles the personal
-# config and publishes it as the "latest" release, targeting main.
+# config and publishes it as the "latest" release, targeting main. The version
+# and the release notes come from the top section of CHANGELOG.md.
 on:
   workflow_dispatch:
-  push:
-    tags: [ 'v*-rf.*' ]
 
 permissions:
   contents: write
@@ -36,16 +35,21 @@ jobs:
           ditto build/Hammerspoon.xcarchive/Products/Applications/Hammerspoon.app build/Hammerspoon.app
           codesign --force --deep --sign - build/Hammerspoon.app
           ditto -c -k --sequesterRsrc --keepParent build/Hammerspoon.app Hammerspoon.app.zip
-      - name: Package config
-        run: tar -czf config.tar.gz -C config .
       - name: Publish latest release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
-            TAG="v1.1.1-rf.${GITHUB_RUN_NUMBER}"
-          fi
-          gh release create "${TAG}" Hammerspoon.app.zip config.tar.gz scripts/fork/install.sh \
-            --target main --latest --title "${TAG}" \
-            --notes "Hammerspoon fork build with personal config. Install: \`curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/scripts/fork/install.sh | bash\`"
+          VERSION="$(sed -n 's/^## \[\([^]]*\)\].*/\1/p' CHANGELOG.md | grep -v '^Unreleased$' | head -1)"
+          [ -n "${VERSION}" ] || { echo "No version found in CHANGELOG.md"; exit 1; }
+          TAG="v${VERSION}"
+          {
+            awk -v v="${VERSION}" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md
+            echo
+            echo "## Install"
+            echo
+            echo '```bash'
+            echo "curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/scripts/fork/install.sh | bash"
+            echo '```'
+          } > release-notes.md
+          gh release create "${TAG}" Hammerspoon.app.zip \
+            --target main --latest --title "${TAG}" --notes-file release-notes.md
