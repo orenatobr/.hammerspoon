@@ -5,10 +5,10 @@
 ## Install this fork
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/orenatobr/.hammerspoon/main/scripts/fork/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/orenatobr/hammerspoon/main/scripts/fork/install.sh | bash
 ```
 
-The script installs `Hammerspoon.app` from the [latest release](https://github.com/orenatobr/.hammerspoon/releases/latest)
+The script installs `Hammerspoon.app` from the [latest release](https://github.com/orenatobr/hammerspoon/releases/latest)
 into `/Applications` and the config into `~/.hammerspoon` (an existing config is backed up first).
 The app is ad-hoc signed, not notarized: the script clears the quarantine flag, and you still need to grant Accessibility permission.
 
