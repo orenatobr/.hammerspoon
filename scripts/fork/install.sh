@@ -11,7 +11,11 @@ trap 'rm -rf "${TMP}"' EXIT
 
 echo "Downloading the latest release of ${REPO}..."
 curl -fsSL "https://github.com/${REPO}/releases/latest/download/Hammerspoon.app.zip" -o "${TMP}/app.zip"
-curl -fsSL "https://github.com/${REPO}/releases/latest/download/config.tar.gz" -o "${TMP}/config.tar.gz"
+TAG="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${REPO}/releases/latest")"
+TAG="${TAG##*/}"
+curl -fsSL "https://github.com/${REPO}/archive/refs/tags/${TAG}.tar.gz" -o "${TMP}/source.tar.gz"
+mkdir "${TMP}/src"
+tar -xzf "${TMP}/source.tar.gz" -C "${TMP}/src" --strip-components=1
 
 echo "Installing Hammerspoon.app into ${APP_DIR}..."
 pkill -x Hammerspoon 2>/dev/null || true
@@ -26,7 +30,7 @@ if [ -f "${CONFIG_DIR}/init.lua" ]; then
     cp -R "${CONFIG_DIR}" "${BACKUP}"
     echo "Existing config backed up to ${BACKUP}"
 fi
-tar -xzf "${TMP}/config.tar.gz" -C "${CONFIG_DIR}"
+cp -R "${TMP}/src/config/." "${CONFIG_DIR}/"
 
 open "${APP_DIR}/Hammerspoon.app"
 echo "Done. Grant Accessibility permission to Hammerspoon when macOS asks."
