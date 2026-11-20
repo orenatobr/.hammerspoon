@@ -1,9 +1,9 @@
 #!/bin/bash
 # Installs the fork's Hammerspoon.app and its personal config.
-# Usage: curl -fsSL https://raw.githubusercontent.com/orenatobr/.hammerspoon/main/scripts/fork/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/orenatobr/hammerspoon/main/scripts/fork/install.sh | bash
 set -euo pipefail
 
-REPO="orenatobr/.hammerspoon"
+REPO="orenatobr/hammerspoon"
 APP_DIR="${APP_DIR:-/Applications}"
 CONFIG_DIR="${HOME}/.hammerspoon"
 TMP="$(mktemp -d)"
