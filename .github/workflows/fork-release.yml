@@ -24,7 +24,7 @@ jobs:
           ref: main
           fetch-depth: 0
       - name: Install build dependencies
-        run: ./scripts/github-ci-pre.sh
+        run: brew install xcbeautify
       - name: Build Hammerspoon.app (ad-hoc signed)
         run: |
           set -o pipefail
