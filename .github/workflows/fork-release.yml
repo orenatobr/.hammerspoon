@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     env:
       IS_CI: 1
     steps:
