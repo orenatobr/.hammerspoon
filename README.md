@@ -12,17 +12,15 @@ The script installs `Hammerspoon.app` from the [latest release](https://github.c
 into `/Applications` and the config into `~/.hammerspoon` (an existing config is backed up first).
 The app is ad-hoc signed, not notarized: the script clears the quarantine flag, and you still need to grant Accessibility permission.
 
+### First launch
+
+The app is ad-hoc signed, not notarized. `install.sh` clears the quarantine flag, so Gatekeeper should not block it. If macOS still complains, right-click `Hammerspoon.app`, choose Open, and confirm. Then enable Hammerspoon under System Settings, Privacy & Security, Accessibility.
+
 See the [CHANGELOG](CHANGELOG.md) for release history. The config modules and tests live in [`config/`](config/). Run the tests with `cd config && busted tests/`.
 
 ---
 
 # Hammerspoon
-[![CI](https://github.com/Hammerspoon/hammerspoon/workflows/CI/badge.svg)](https://github.com/Hammerspoon/hammerspoon/actions?query=workflow%3ACI)
-[![codecov.io](https://codecov.io/github/Hammerspoon/hammerspoon/coverage.svg?branch=master)](https://codecov.io/github/Hammerspoon/hammerspoon?branch=master)
-[![Downloads current release](https://img.shields.io/github/downloads/Hammerspoon/hammerspoon/latest/total.svg)](https://github.com/Hammerspoon/hammerspoon/releases)
-[![Downloads all releases](https://img.shields.io/github/downloads/Hammerspoon/hammerspoon/total.svg?maxAge=2592000)](https://github.com/Hammerspoon/hammerspoon/releases)
-[![Latest tag](https://img.shields.io/github/tag/Hammerspoon/hammerspoon.svg)](https://github.com/Hammerspoon/hammerspoon/tags)
-[![Latest release](https://img.shields.io/github/release/Hammerspoon/hammerspoon.svg)](https://github.com/Hammerspoon/hammerspoon/releases/latest)
 
 Discord: [Click to join](https://discord.gg/vxchqkRbkR)
 

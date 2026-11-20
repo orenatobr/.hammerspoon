@@ -10,7 +10,10 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "${TMP}"' EXIT
 
 echo "Downloading the latest release of ${REPO}..."
-curl -fsSL "https://github.com/${REPO}/releases/latest/download/Hammerspoon.app.zip" -o "${TMP}/app.zip"
+ASSET="Hammerspoon-macos-universal.zip"
+curl -fsSL "https://github.com/${REPO}/releases/latest/download/${ASSET}" -o "${TMP}/${ASSET}"
+curl -fsSL "https://github.com/${REPO}/releases/latest/download/${ASSET}.sha256" -o "${TMP}/${ASSET}.sha256"
+(cd "${TMP}" && shasum -a 256 -c "${ASSET}.sha256")
 TAG="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${REPO}/releases/latest")"
 TAG="${TAG##*/}"
 curl -fsSL "https://github.com/${REPO}/archive/refs/tags/${TAG}.tar.gz" -o "${TMP}/source.tar.gz"
@@ -20,7 +23,7 @@ tar -xzf "${TMP}/source.tar.gz" -C "${TMP}/src" --strip-components=1
 echo "Installing Hammerspoon.app into ${APP_DIR}..."
 pkill -x Hammerspoon 2>/dev/null || true
 rm -rf "${APP_DIR}/Hammerspoon.app"
-ditto -x -k "${TMP}/app.zip" "${APP_DIR}"
+ditto -x -k "${TMP}/${ASSET}" "${APP_DIR}"
 xattr -dr com.apple.quarantine "${APP_DIR}/Hammerspoon.app" 2>/dev/null || true
 
 echo "Installing config into ${CONFIG_DIR}..."

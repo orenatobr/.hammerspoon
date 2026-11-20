@@ -6,6 +6,7 @@ on:
 
 jobs:
   check_labels:
+    if: github.repository == 'Hammerspoon/hammerspoon'
     name: Verify PR has a valid label
     runs-on: ubuntu-latest
     steps:
