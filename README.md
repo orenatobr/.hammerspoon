@@ -1,3 +1,21 @@
+> **This is a fork of [Hammerspoon/hammerspoon](https://github.com/Hammerspoon/hammerspoon).**
+> It adds a personal Lua config (`config/`) and publishes a ready-to-use `Hammerspoon.app` with that config.
+> All credit for Hammerspoon goes to the original authors; the upstream README follows below.
+
+## Install this fork
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orenatobr/.hammerspoon/main/scripts/fork/install.sh | bash
+```
+
+The script installs `Hammerspoon.app` from the [latest release](https://github.com/orenatobr/.hammerspoon/releases/latest)
+into `/Applications` and the config into `~/.hammerspoon` (an existing config is backed up first).
+The app is ad-hoc signed, not notarized: the script clears the quarantine flag, and you still need to grant Accessibility permission.
+
+The config modules and tests live in [`config/`](config/). Run the tests with `cd config && busted tests/`.
+
+---
+
 # Hammerspoon
 [![CI](https://github.com/Hammerspoon/hammerspoon/workflows/CI/badge.svg)](https://github.com/Hammerspoon/hammerspoon/actions?query=workflow%3ACI)
 [![codecov.io](https://codecov.io/github/Hammerspoon/hammerspoon/coverage.svg?branch=master)](https://codecov.io/github/Hammerspoon/hammerspoon?branch=master)
