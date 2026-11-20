@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    if: github.repository == 'Hammerspoon/hammerspoon'
     name: Build and Test
     runs-on: macos-15
     permissions:

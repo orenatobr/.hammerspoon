@@ -34,7 +34,8 @@ jobs:
             archive | xcbeautify
           ditto build/Hammerspoon.xcarchive/Products/Applications/Hammerspoon.app build/Hammerspoon.app
           codesign --force --deep --sign - build/Hammerspoon.app
-          ditto -c -k --sequesterRsrc --keepParent build/Hammerspoon.app Hammerspoon.app.zip
+          ditto -c -k --sequesterRsrc --keepParent build/Hammerspoon.app Hammerspoon-macos-universal.zip
+          shasum -a 256 Hammerspoon-macos-universal.zip > Hammerspoon-macos-universal.zip.sha256
       - name: Publish latest release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -51,5 +52,5 @@ jobs:
             echo "curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/scripts/fork/install.sh | bash"
             echo '```'
           } > release-notes.md
-          gh release create "${TAG}" Hammerspoon.app.zip \
+          gh release create "${TAG}" Hammerspoon-macos-universal.zip Hammerspoon-macos-universal.zip.sha256 \
             --target main --latest --title "${TAG}" --notes-file release-notes.md
